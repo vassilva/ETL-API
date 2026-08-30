@@ -449,3 +449,5 @@ This repository is a practical Data QA laboratory designed to demonstrate how QA
 The project focuses on the principle that successful data delivery requires validation at multiple levels:
 
 Pipeline execution, data integrity, transformation accuracy, source-to-target reconciliation, automated regression testing, CI Quality Gates, and business-level validation.
+
+This project uses Jenkins Multibranch Pipeline to automatically validate feature branches through ETL execution and automated tests.

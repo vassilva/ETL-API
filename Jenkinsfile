@@ -15,14 +15,27 @@ pipeline {
                 echo ========================================
                 echo CI BUILD INFORMATION
                 echo ========================================
+                echo Branch: %BRANCH_NAME%
 
-                for /f "delims=" %%i in ('git branch --show-current') do set CURRENT_BRANCH=%%i
                 for /f "delims=" %%i in ('git rev-parse --short HEAD') do set CURRENT_COMMIT=%%i
 
-                echo Branch: %CURRENT_BRANCH%
                 echo Commit: %CURRENT_COMMIT%
-
                 echo ========================================
+                '''
+            }
+        }
+
+        stage('Setup Environment') {
+            steps {
+                bat '''
+                if not exist .venv (
+                    python -m venv .venv
+                )
+
+                call .venv\\Scripts\\activate.bat
+
+                python -m pip install --upgrade pip
+                python -m pip install -r requirements.txt
                 '''
             }
         }

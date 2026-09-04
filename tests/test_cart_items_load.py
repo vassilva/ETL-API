@@ -182,3 +182,64 @@ def test_cart_items_data_reconciliation(processed_carts, db_connection):
             ) == decimal_2(
                 expected_item["discounted_total"]
             )
+
+            # Validate Cart Items aggregated values against Cart totals
+def test_cart_items_aggregates_match_carts(db_connection):
+    cursor = db_connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            c.cart_id,
+            c.total,
+            c.discounted_total,
+            c.total_quantity,
+            c.total_products,
+            SUM(ci.total) AS items_total,
+            SUM(ci.discounted_total) AS items_discounted_total,
+            SUM(ci.quantity) AS items_quantity,
+            COUNT(ci.item_position) AS items_count
+        FROM carts c
+        JOIN cart_items ci
+            ON c.cart_id = ci.cart_id
+        GROUP BY
+            c.cart_id,
+            c.total,
+            c.discounted_total,
+            c.total_quantity,
+            c.total_products
+        """
+    )
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+
+    for row in rows:
+        (
+            cart_id,
+            cart_total,
+            cart_discounted_total,
+            cart_total_quantity,
+            cart_total_products,
+            items_total,
+            items_discounted_total,
+            items_quantity,
+            items_count
+        ) = row
+
+        assert decimal_2(items_total) == decimal_2(cart_total), (
+            f"Cart {cart_id}: total mismatch"
+        )
+
+        assert decimal_2(items_discounted_total) == decimal_2(
+            cart_discounted_total
+        ), f"Cart {cart_id}: discounted total mismatch"
+
+        assert items_quantity == cart_total_quantity, (
+            f"Cart {cart_id}: quantity mismatch"
+        )
+
+        assert items_count == cart_total_products, (
+            f"Cart {cart_id}: product count mismatch"
+        )

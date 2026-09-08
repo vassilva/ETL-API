@@ -187,6 +187,8 @@ def test_cart_items_data_reconciliation(processed_carts, db_connection):
 def test_cart_items_aggregates_match_carts(db_connection):
     cursor = db_connection.cursor()
 
+
+
     cursor.execute(
         """
         SELECT

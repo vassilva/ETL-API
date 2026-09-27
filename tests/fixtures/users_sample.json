@@ -1,0 +1,39 @@
+{
+    "users": [
+        {
+            "id": 1,
+            "firstName": "Test",
+            "lastName": "User-One",
+            "email": "user.one@example.test",
+            "phone": "+00 000-000-0001",
+            "address": {
+                "city": "Sample City",
+                "state": "Sample State",
+                "country": "Testland"
+            },
+            "company": {
+                "name": "Example Corp",
+                "department": "Quality"
+            }
+        },
+        {
+            "id": 2,
+            "firstName": "Ámélie",
+            "lastName": "Tëst",
+            "email": "user.two@example.test",
+            "phone": "+00 000-000-0002",
+            "address": {
+                "city": "Other City",
+                "state": "Other State",
+                "country": "Testland"
+            },
+            "company": {
+                "name": "Sample Ltd",
+                "department": "Engineering"
+            }
+        }
+    ],
+    "total": 2,
+    "skip": 0,
+    "limit": 2
+}

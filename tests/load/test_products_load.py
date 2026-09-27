@@ -1,26 +1,14 @@
-import json
 import pytest
 from decimal import Decimal
 
-from load.database import get_connection
+from support.db_helpers import fetch_records, index_by
 
 
-@pytest.fixture(scope="module")
-def db_connection():
-    connection = get_connection()
-
-    yield connection
-
-    connection.close()
-
-
-@pytest.fixture(scope="module")
-def processed_products():
-    with open("data/processed/products.json", "r", encoding="utf-8") as file:
-        return json.load(file)
+pytestmark = [pytest.mark.load, pytest.mark.database, pytest.mark.artifacts]
 
 
 # Validate processed Products count against PostgreSQL
+@pytest.mark.smoke
 def test_products_count(processed_products, db_connection):
     cursor = db_connection.cursor()
 
@@ -54,9 +42,8 @@ def test_products_ids_are_unique(db_connection):
 
 # Validate Products field by field: Processed JSON vs PostgreSQL
 def test_products_data_reconciliation(processed_products, db_connection):
-    cursor = db_connection.cursor()
-
-    cursor.execute(
+    database_products = fetch_records(
+        db_connection,
         """
         SELECT
             product_id,
@@ -74,26 +61,7 @@ def test_products_data_reconciliation(processed_products, db_connection):
         """
     )
 
-    database_products = cursor.fetchall()
-
-    cursor.close()
-
-    database_by_id = {
-        row[0]: {
-            "product_id": row[0],
-            "product_name": row[1],
-            "category": row[2],
-            "price": row[3],
-            "discount_percentage": row[4],
-            "discounted_price": row[5],
-            "rating": row[6],
-            "stock": row[7],
-            "brand": row[8],
-            "sku": row[9],
-            "availability_status": row[10]
-        }
-        for row in database_products
-    }
+    database_by_id = index_by(database_products, "product_id")
 
     for expected_product in processed_products:
         product_id = expected_product["product_id"]

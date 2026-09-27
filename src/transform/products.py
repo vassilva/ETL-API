@@ -1,9 +1,9 @@
-import json
+from config.settings import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from utils.json_files import read_json, write_json
 
 
 def load_raw_products():
-    with open("data/raw/products.json", "r", encoding="utf-8") as file:
-        data = json.load(file)
+    data = read_json(RAW_DATA_DIR / "products.json")
 
     return data["products"]
 
@@ -31,21 +31,20 @@ def transform_product(product):
     return transformed_product
 
 
-def transform_products():
-    products = load_raw_products()
-
-    transformed_products = [
+def transform_products_data(products):
+    """Pure transformation: raw products -> processed products (no I/O)."""
+    return [
         transform_product(product)
         for product in products
     ]
 
-    with open("data/processed/products.json", "w", encoding="utf-8") as file:
-        json.dump(
-            transformed_products,
-            file,
-            ensure_ascii=False,
-            indent=4
-        )
+
+def transform_products():
+    products = load_raw_products()
+
+    transformed_products = transform_products_data(products)
+
+    write_json(PROCESSED_DATA_DIR / "products.json", transformed_products)
 
     print("Products transformed:", len(transformed_products))
 

@@ -1,31 +1,20 @@
-import json
 import pytest
 
-from transform.carts import load_raw_carts
-from transform.carts import transform_carts
+from transform.carts import transform_carts_data
+
+
+pytestmark = [pytest.mark.transform, pytest.mark.artifacts]
 
 
 @pytest.fixture(scope="module")
-def carts_transform_data():
-    raw_carts = load_raw_carts()
-    processed_carts = transform_carts()
+def carts_transform_data(raw_carts):
+    processed_carts = transform_carts_data(raw_carts)
 
     return raw_carts, processed_carts
 
 
-@pytest.fixture(scope="module")
-def processed_users():
-    with open("data/processed/users.json", "r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-@pytest.fixture(scope="module")
-def processed_products():
-    with open("data/processed/products.json", "r", encoding="utf-8") as file:
-        return json.load(file)
-
-
 # Validate that the number of processed carts matches the number of raw carts
+@pytest.mark.smoke
 def test_carts_transform_count(carts_transform_data):
     raw_carts, processed_carts = carts_transform_data
 

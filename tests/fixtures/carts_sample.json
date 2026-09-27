@@ -1,0 +1,35 @@
+{
+    "carts": [
+        {
+            "id": 201,
+            "userId": 1,
+            "total": 239.98,
+            "discountedTotal": 214.98,
+            "totalProducts": 2,
+            "totalQuantity": 4,
+            "products": [
+                {
+                    "id": 101,
+                    "title": "Synthetic Widget",
+                    "price": 100.0,
+                    "quantity": 2,
+                    "total": 200.0,
+                    "discountPercentage": 12.5,
+                    "discountedTotal": 175.0
+                },
+                {
+                    "id": 102,
+                    "title": "Unbranded Gadget",
+                    "price": 19.99,
+                    "quantity": 2,
+                    "total": 39.98,
+                    "discountPercentage": 0.0,
+                    "discountedTotal": 39.98
+                }
+            ]
+        }
+    ],
+    "total": 1,
+    "skip": 0,
+    "limit": 1
+}

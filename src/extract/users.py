@@ -1,20 +1,13 @@
-import json
-import requests
+from extract.common import extract_resource, fetch_resource
 
-URL = "https://dummyjson.com/users?limit=0"
+RESOURCE = "users"
+
+
+def fetch_users():
+    """Fetch users from the API without writing data/raw (used by tests)."""
+    return fetch_resource(RESOURCE)
 
 
 def extract_users():
-    response = requests.get(URL)
-    response.raise_for_status()
-
-    data = response.json()
-    users = data["users"]
-    total = data["total"]
-
-    with open("data/raw/users.json", "w", encoding="utf-8") as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-
-    print("Users extracted:", len(users))
-
-    return users, total
+    """Fetch users, save data/raw/users.json and return (users, total)."""
+    return extract_resource(RESOURCE, "Users")

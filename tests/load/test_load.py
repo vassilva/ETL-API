@@ -1,49 +1,11 @@
-import json
 import pytest
 from decimal import Decimal
 
-from load.database import get_connection
+from support.assertions import assert_field_matches
+from support.db_helpers import fetch_records, index_by
 
 
-# Fixtures
-
-@pytest.fixture(scope="module")
-def db_connection():
-    """
-    Create one PostgreSQL connection for all Load tests.
-    """
-    connection = get_connection()
-
-    yield connection
-
-    connection.close()
-
-
-@pytest.fixture(scope="module")
-def processed_users():
-    """
-    Read transformed Users data from the processed JSON file.
-    """
-    with open("data/processed/users.json", "r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-@pytest.fixture(scope="module")
-def processed_products():
-    """
-    Read transformed Products data from the processed JSON file.
-    """
-    with open("data/processed/products.json", "r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-@pytest.fixture(scope="module")
-def processed_carts():
-    """
-    Read transformed Carts data from the processed JSON file.
-    """
-    with open("data/processed/carts.json", "r", encoding="utf-8") as file:
-        return json.load(file)
+pytestmark = [pytest.mark.load, pytest.mark.database, pytest.mark.artifacts]
 
 
 # Count reconciliation
@@ -255,9 +217,8 @@ def test_users_data_reconciliation(processed_users, db_connection):
     Validate Users field by field:
     Processed JSON vs PostgreSQL.
     """
-    cursor = db_connection.cursor()
-
-    cursor.execute(
+    database_users = fetch_records(
+        db_connection,
         """
         SELECT
             user_id,
@@ -275,26 +236,7 @@ def test_users_data_reconciliation(processed_users, db_connection):
         """
     )
 
-    database_users = cursor.fetchall()
-
-    cursor.close()
-
-    database_by_id = {
-        row[0]: {
-            "user_id": row[0],
-            "first_name": row[1],
-            "last_name": row[2],
-            "full_name": row[3],
-            "email": row[4],
-            "phone": row[5],
-            "city": row[6],
-            "state": row[7],
-            "country": row[8],
-            "company_name": row[9],
-            "department": row[10]
-        }
-        for row in database_users
-    }
+    database_by_id = index_by(database_users, "user_id")
 
     for expected_user in processed_users:
         user_id = expected_user["user_id"]
@@ -303,16 +245,76 @@ def test_users_data_reconciliation(processed_users, db_connection):
 
         actual_user = database_by_id[user_id]
 
-        assert actual_user["first_name"] == expected_user["first_name"]
-        assert actual_user["last_name"] == expected_user["last_name"]
-        assert actual_user["full_name"] == expected_user["full_name"]
-        assert actual_user["email"] == expected_user["email"]
-        assert actual_user["phone"] == expected_user["phone"]
-        assert actual_user["city"] == expected_user["city"]
-        assert actual_user["state"] == expected_user["state"]
-        assert actual_user["country"] == expected_user["country"]
-        assert actual_user["company_name"] == expected_user["company_name"]
-        assert actual_user["department"] == expected_user["department"]
+        assert_field_matches(
+            actual_user["first_name"],
+            expected_user["first_name"],
+            entity="user",
+            record_id=user_id,
+            field="first_name"
+        )
+        assert_field_matches(
+            actual_user["last_name"],
+            expected_user["last_name"],
+            entity="user",
+            record_id=user_id,
+            field="last_name"
+        )
+        assert_field_matches(
+            actual_user["full_name"],
+            expected_user["full_name"],
+            entity="user",
+            record_id=user_id,
+            field="full_name"
+        )
+        assert_field_matches(
+            actual_user["email"],
+            expected_user["email"],
+            entity="user",
+            record_id=user_id,
+            field="email"
+        )
+        assert_field_matches(
+            actual_user["phone"],
+            expected_user["phone"],
+            entity="user",
+            record_id=user_id,
+            field="phone"
+        )
+        assert_field_matches(
+            actual_user["city"],
+            expected_user["city"],
+            entity="user",
+            record_id=user_id,
+            field="city"
+        )
+        assert_field_matches(
+            actual_user["state"],
+            expected_user["state"],
+            entity="user",
+            record_id=user_id,
+            field="state"
+        )
+        assert_field_matches(
+            actual_user["country"],
+            expected_user["country"],
+            entity="user",
+            record_id=user_id,
+            field="country"
+        )
+        assert_field_matches(
+            actual_user["company_name"],
+            expected_user["company_name"],
+            entity="user",
+            record_id=user_id,
+            field="company_name"
+        )
+        assert_field_matches(
+            actual_user["department"],
+            expected_user["department"],
+            entity="user",
+            record_id=user_id,
+            field="department"
+        )
 
 
 # Products data reconciliation
@@ -322,9 +324,8 @@ def test_products_data_reconciliation(processed_products, db_connection):
     Validate Products field by field:
     Processed JSON vs PostgreSQL.
     """
-    cursor = db_connection.cursor()
-
-    cursor.execute(
+    database_products = fetch_records(
+        db_connection,
         """
         SELECT
             product_id,
@@ -342,26 +343,7 @@ def test_products_data_reconciliation(processed_products, db_connection):
         """
     )
 
-    database_products = cursor.fetchall()
-
-    cursor.close()
-
-    database_by_id = {
-        row[0]: {
-            "product_id": row[0],
-            "product_name": row[1],
-            "category": row[2],
-            "price": row[3],
-            "discount_percentage": row[4],
-            "discounted_price": row[5],
-            "rating": row[6],
-            "stock": row[7],
-            "brand": row[8],
-            "sku": row[9],
-            "availability_status": row[10]
-        }
-        for row in database_products
-    }
+    database_by_id = index_by(database_products, "product_id")
 
     for expected_product in processed_products:
         product_id = expected_product["product_id"]

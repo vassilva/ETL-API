@@ -64,6 +64,91 @@ Power BI is used as the reporting and business validation layer on top of the Po
 
 ---
 
+## Project Structure
+
+```text
+src/
+├── main.py                 # Pipeline entry point: extract + transform (no load)
+├── config/settings.py      # Centralized configuration (the only env reader)
+├── api/client.py           # HTTP client: base URL, timeout, status checks, safe errors
+├── extract/                # Fetch source resources and save data/raw
+├── transform/              # Pure transformations + file wrappers (data/raw -> data/processed)
+├── load/                   # Static, parameterized upserts per table
+├── database/connection.py  # Connections, transactions, rollback, read-only sessions
+└── utils/json_files.py     # JSON read/write anchored to the project root
+
+tests/
+├── conftest.py             # Shared fixtures, regression marker
+├── support/                # Test helpers (read-only DB queries, value-hiding assertions)
+├── fixtures/               # Synthetic data only
+├── api/                    # API client unit tests (mocked HTTP)
+├── extract/                # Live API data quality + offline extract unit tests
+├── transform/              # Mapping/rule tests on generated files + synthetic unit tests
+└── load/                   # PostgreSQL reconciliation (read-only) + offline DB unit tests
+
+data/raw, data/processed    # Generated pipeline artifacts
+sql/                        # DDL reference (never executed automatically)
+reports/                    # Local test reports (git-ignored)
+```
+
+---
+
+## Local Setup
+
+```text
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements-dev.txt
+copy .env.example .env      (then fill in local values)
+```
+
+Run the pipeline (extract + transform) from the project root:
+
+```text
+python src/main.py
+```
+
+The load step is run manually and only when intended, from the `src` directory:
+
+```text
+cd src
+python -m load.users
+python -m load.products
+python -m load.carts
+python -m load.cart_items
+```
+
+---
+
+## Running Tests
+
+Tests are grouped by ETL stage and tagged with Pytest markers (similar to tags in Cypress/Playwright):
+
+| Command | Runs |
+|---|---|
+| `pytest` / `pytest -m regression` | Complete suite |
+| `pytest -m smoke` | One record-count check per stage and dataset (10 tests) |
+| `pytest -m unit` | Offline tests: no network, database, credentials, or generated files |
+| `pytest -m "not integration"` | Everything that runs without network or PostgreSQL (safe offline run) |
+| `pytest -m integration` | Everything that needs an external system (`live_api` + `database`) |
+| `pytest -m api` | Offline tests of our API client (mocked HTTP, no network) |
+| `pytest -m live_api` | Source data checks with real GET requests to the external API |
+| `pytest -m database` | PostgreSQL reconciliation (read-only session) |
+| `pytest -m extract` / `transform` / `load` | One ETL stage |
+
+Marker meaning:
+
+- `api` vs `live_api`: `api` tests *our client code* offline; `live_api` calls the *real source API*.
+- `integration`: requires an external system. Added automatically (in `tests/conftest.py`) to every `live_api` and `database` test, so it never needs to be written by hand.
+- `artifacts`: requires generated files in `data/`. Run `python src/main.py` first; the tests fail with a clear message if files are missing.
+- `database`: uses a read-only PostgreSQL session; tests cannot modify data.
+- Tests never write to `data/` or to the database.
+- Assertions on personal-data fields report only the record ID and field name, never the values.
+
+Lint: `ruff check src tests`
+
+---
+
 ## Data Sources
 
 The ETL process currently consumes the following datasets from the source API:
@@ -125,7 +210,10 @@ The load layer preserves relationships between datasets and provides the target 
 
 Automated Data Quality checks are implemented using Pytest.
 
-The current regression suite contains **86 automated tests** covering the Extract, Transform, and Load layers.
+The regression suite contains **141 automated tests** covering the Extract, Transform, and Load layers:
+
+- 87 data quality tests against the live API, generated pipeline files, and PostgreSQL
+- 54 offline unit tests using synthetic data (API client, extract, transform, database/load infrastructure)
 
 The validations include:
 
@@ -205,13 +293,29 @@ GitHub Repository
 
 The pipeline executes on a dedicated Windows Jenkins agent.
 
+The target staged layout (not yet applied to the `Jenkinsfile`) is:
+
+| Stage | Command | DB credentials |
+|---|---|---|
+| Lint | `ruff check src tests` | no |
+| Unit | `pytest -m unit` | no |
+| Extract | `pytest -m live_api` | no |
+| Run ETL | `python src/main.py` (extract + transform only) | no |
+| Transform | `pytest -m "transform and artifacts"` | no |
+| DB Validation | `pytest -m database` (read-only) | yes, this stage only |
+| Reports | `--junitxml=reports/junit-<stage>.xml` + JUnit publish | no |
+
+The load step is intentionally not part of CI.
+
 ---
 
 ## Credentials Management
 
 Database credentials are not stored in the source code or committed to GitHub.
 
-Local development uses environment configuration excluded from Git through `.gitignore`.
+Local development uses a `.env` file excluded from Git through `.gitignore`. Copy `.env.example` (placeholders only) to `.env` and fill in local values.
+
+All environment access is centralized in `src/config/settings.py`. Database settings are validated only when a connection is requested, and connection details are never included in `repr()`, logs, or error messages.
 
 For CI execution, PostgreSQL credentials are securely managed by Jenkins Credentials using the credential ID:
 
@@ -435,7 +539,7 @@ The resulting data must also pass the automated Data Quality checks.
 A successfully validated CI execution currently produces:
 
 ```text
-86 passed
+141 passed
 
 ETL pipeline completed successfully.
 
@@ -528,7 +632,7 @@ The current implementation supports:
 - [x] PostgreSQL loading
 - [x] Source-to-target reconciliation
 - [x] Automated Data Quality testing
-- [x] 86-test regression suite
+- [x] 141-test regression suite (87 data quality + 54 unit)
 - [x] Jenkins pipeline execution
 - [x] Jenkinsfile stored in source control
 - [x] Windows Jenkins agent

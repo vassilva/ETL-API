@@ -1,9 +1,9 @@
-import json
+from config.settings import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from utils.json_files import read_json, write_json
 
 
 def load_raw_carts():
-    with open("data/raw/carts.json", "r", encoding="utf-8") as file:
-        data = json.load(file)
+    data = read_json(RAW_DATA_DIR / "carts.json")
 
     return data["carts"]
 
@@ -41,21 +41,20 @@ def transform_cart(cart):
     return transformed_cart
 
 
-def transform_carts():
-    carts = load_raw_carts()
-
-    transformed_carts = [
+def transform_carts_data(carts):
+    """Pure transformation: raw carts -> processed carts (no I/O)."""
+    return [
         transform_cart(cart)
         for cart in carts
     ]
 
-    with open("data/processed/carts.json", "w", encoding="utf-8") as file:
-        json.dump(
-            transformed_carts,
-            file,
-            ensure_ascii=False,
-            indent=4
-        )
+
+def transform_carts():
+    carts = load_raw_carts()
+
+    transformed_carts = transform_carts_data(carts)
+
+    write_json(PROCESSED_DATA_DIR / "carts.json", transformed_carts)
 
     print("Carts transformed:", len(transformed_carts))
 

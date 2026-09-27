@@ -6,7 +6,7 @@ This project implements an end-to-end ETL pipeline designed to simulate a produc
 
 The solution extracts data from external REST APIs, applies transformation and data quality rules, loads the processed data into PostgreSQL, and automatically validates the resulting datasets through an automated test suite.
 
-Jenkins is used as the orchestration and Continuous Integration layer to execute the ETL pipeline and its associated Data Quality tests.
+Jenkins is used as the Continuous Integration layer. The main `Jenkinsfile` is an offline quality gate (lint + offline tests); ETL and external-system execution will be handled by a separate Jenkins job in the future.
 
 The project was developed as a hands-on environment for practicing ETL testing, database validation, pipeline automation, Git workflows, and CI/CD concepts from a QA/Data QA perspective.
 
@@ -255,57 +255,71 @@ The Jenkins pipeline definition is stored as code in the repository using a `Jen
 
 This allows the CI configuration to be version-controlled together with the application and test code.
 
-The current pipeline contains two primary stages:
+The main `Jenkinsfile` is an **offline CI Quality Gate**. It needs no database, no DB credentials, no `.env`, and no access to the source API. Network access is used only to install dependencies from PyPI.
 
 ```text
-Run ETL
+Checkout
    |
    v
-Run Tests
-```
-
-The execution flow is:
-
-```text
-GitHub Repository
-        |
-        v
-    Jenkins
-        |
-        v
- Windows Agent
-        |
-        v
-   Checkout Code
-        |
-        v
-     Run ETL
-        |
-        v
-   PostgreSQL
-        |
-        v
- Run Automated Tests
-        |
-        v
-   Quality Gate
+Build Information
+   |
+   v
+Workspace Guard        (fails if a .env file exists; removes stale reports)
+   |
+   v
+Setup Python           (fresh .venv every build)
+   |
+   v
+Install Dependencies   (requirements-dev.txt + pip check)
+   |
+   v
+Ruff
+   |
+   v
+Offline Tests
+   +---- API Client
+   +---- Unit
+   +---- Offline Data Quality
+   |
+   v
+Publish JUnit results  (always)
+   |
+   v
+Cleanup                (workspace deleted)
 ```
 
 The pipeline executes on a dedicated Windows Jenkins agent.
 
-The target staged layout (not yet applied to the `Jenkinsfile`) is:
+| Stage | Command | Tests | JUnit report |
+|---|---|---|---|
+| Ruff | `ruff check src tests --no-cache` | - | - |
+| API Client | `pytest -m api` | 11 | `reports/api.xml` |
+| Unit | `pytest -m "unit and not api"` | 43 | `reports/unit.xml` |
+| Offline Data Quality | `pytest -m "not integration and not unit"` | 38 | `reports/offline-data.xml` |
 
-| Stage | Command | DB credentials |
+The three test selections do not overlap: **92 tests are executed once per build**.
+
+Behavior:
+
+- Dependency installation or Ruff failures stop the pipeline before any test runs.
+- All three test groups always run; a failing group marks its stage and the build as FAILURE.
+- JUnit results are published after every build, including failed ones.
+- During the test stages `API_BASE_URL` points to an unreachable local address, so an accidental API request fails immediately instead of reaching the real API.
+- Builds time out after 20 minutes, never run concurrently, and the last 30 builds are kept.
+
+Intentionally **not** executed by this `Jenkinsfile`:
+
+| Selection | Tests | Reason |
 |---|---|---|
-| Lint | `ruff check src tests` | no |
-| Unit | `pytest -m unit` | no |
-| Extract | `pytest -m live_api` | no |
-| Run ETL | `python src/main.py` (extract + transform only) | no |
-| Transform | `pytest -m "transform and artifacts"` | no |
-| DB Validation | `pytest -m database` (read-only) | yes, this stage only |
-| Reports | `--junitxml=reports/junit-<stage>.xml` + JUnit publish | no |
+| `live_api` | 21 | Requires the external source API |
+| `database` | 28 | Requires PostgreSQL and DB credentials |
+| `integration` | 49 | `live_api` + `database` |
+| `smoke` | 10 | Includes `live_api` and `database` tests |
+| `regression` | 141 | Full suite, includes external systems |
+| ETL execution (`python src/main.py`) | - | Calls the live API and rewrites `data/` |
+| ETL Load | - | Writes to PostgreSQL |
 
-The load step is intentionally not part of CI.
+External-system and ETL automation will be handled separately by a future Jenkins job / Jenkinsfile. Until then, these selections run locally only.
 
 ---
 
@@ -317,32 +331,9 @@ Local development uses a `.env` file excluded from Git through `.gitignore`. Cop
 
 All environment access is centralized in `src/config/settings.py`. Database settings are validated only when a connection is requested, and connection details are never included in `repr()`, logs, or error messages.
 
-For CI execution, PostgreSQL credentials are securely managed by Jenkins Credentials using the credential ID:
+The main `Jenkinsfile` (offline quality gate) does not use any database credentials. The CI workspace must not contain a `.env` file; the pipeline fails if one is found.
 
-```text
-postgres-etl-api
-```
-
-During pipeline execution, Jenkins injects the required credentials as environment variables.
-
-This prevents sensitive database credentials from being exposed in the Git repository.
-
-```text
-Jenkins Credentials
-        |
-        +---- Username
-        |
-        +---- Password
-        |
-        v
-Environment Variables
-        |
-        v
-Python / Pytest
-        |
-        v
-PostgreSQL
-```
+PostgreSQL credentials for CI remain stored in Jenkins Credentials, outside the repository. They are reserved for the future ETL / external-system job, where they should be bound only to the stage that needs them.
 
 ---
 
@@ -415,10 +406,7 @@ feature/jenkins-ci
      Jenkins
         |
         v
-   ETL Execution
-        |
-        v
- Automated Tests
+  Ruff + Offline Tests
         |
         v
    Quality Gate
@@ -440,10 +428,10 @@ The CI workflow is designed to:
 1. Detect source-control changes.
 2. Retrieve the latest code from GitHub.
 3. Read the version-controlled `Jenkinsfile`.
-4. Execute the ETL process.
-5. Connect to PostgreSQL using Jenkins-managed credentials.
-6. Execute the automated Data Quality regression suite.
-7. Fail the pipeline if ETL execution or automated validation fails.
+4. Create a fresh Python environment and install the pinned dependencies.
+5. Run Ruff.
+6. Execute the 92 offline tests (API Client, Unit, Offline Data Quality).
+7. Publish JUnit results.
 8. Mark the pipeline as successful only when all validation steps pass.
 
 The pipeline therefore acts as a **Quality Gate** before changes are considered ready for integration into the `main` branch.
@@ -486,64 +474,37 @@ In a remotely accessible Jenkins environment, this workflow could be evolved to 
 
 ## Scheduled Execution
 
-In addition to CI execution, Jenkins supports scheduled ETL execution.
+The main `Jenkinsfile` is a change-driven CI quality gate and does not execute the ETL process.
 
-The scheduled pipeline simulates a batch ETL process commonly found in enterprise Data Warehouse environments.
-
-During scheduled execution Jenkins automatically:
-
-1. Starts the Windows agent execution.
-2. Retrieves the pipeline definition.
-3. Executes the ETL process.
-4. Extracts source datasets.
-5. Applies transformation rules.
-6. Loads target PostgreSQL tables.
-7. Executes the automated Data Quality regression suite.
-8. Reports the final pipeline status.
-
-This allows the project to simulate both:
-
-```text
-Scheduled ETL Processing
-```
-
-and:
-
-```text
-Change-Driven CI Validation
-```
+Scheduled ETL processing (extract, transform, load and external-system validation), simulating a batch ETL process commonly found in enterprise Data Warehouse environments, is planned as a separate Jenkins job and is not implemented yet.
 
 ---
 
 ## Pipeline Quality Gate
 
-The automated regression suite acts as a Quality Gate for the ETL process.
+The offline test suite acts as a Quality Gate for every change.
 
 Expected behavior:
 
 ```text
-ETL Execution
-      |
-      v
-Run Data Quality Tests
-      |
-      +---- All tests passed ----> Pipeline SUCCESS
-      |
-      +---- Test failure --------> Pipeline FAILURE
+Ruff
+  |
+  v
+Offline Tests (API Client, Unit, Offline Data Quality)
+  |
+  +---- All tests passed ----> Pipeline SUCCESS
+  |
+  +---- Any failure ---------> Pipeline FAILURE
 ```
 
-A pipeline is not considered successfully validated simply because the ETL execution completed.
-
-The resulting data must also pass the automated Data Quality checks.
-
-A successfully validated CI execution currently produces:
+A successfully validated CI execution reports:
 
 ```text
-141 passed
+API Client:            11 passed
+Unit:                  43 passed
+Offline Data Quality:  38 passed
 
-ETL pipeline completed successfully.
-
-Finished: SUCCESS
+Offline quality gate passed.
 ```
 
 ---
@@ -633,11 +594,12 @@ The current implementation supports:
 - [x] Source-to-target reconciliation
 - [x] Automated Data Quality testing
 - [x] 141-test regression suite (87 data quality + 54 unit)
-- [x] Jenkins pipeline execution
+- [x] Jenkins offline quality gate (Ruff + 92 offline tests)
+- [x] JUnit test reports in Jenkins
 - [x] Jenkinsfile stored in source control
 - [x] Windows Jenkins agent
-- [x] Jenkins Credentials integration
-- [x] Scheduled Jenkins execution
+- [ ] Separate Jenkins job for ETL and external-system tests (live API, PostgreSQL)
+- [ ] Scheduled ETL execution (planned for the separate job)
 - [x] Git repository
 - [x] GitHub integration
 - [x] Feature branch workflow
@@ -657,7 +619,7 @@ Planned improvements include:
 - CI result visibility directly in Pull Requests
 - Branch protection rules
 - Improved automated test reporting
-- JUnit test reports in Jenkins
+- Separate Jenkins job for ETL execution and external-system tests
 - Simulated DEV / QA / UAT promotion flow
 - Environment-specific configuration
 - Pipeline failure notifications

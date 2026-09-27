@@ -1,11 +1,25 @@
+// Offline CI Quality Gate
+//
+// Runs lint and the 92 offline tests (no live API, no PostgreSQL, no ETL).
+// This pipeline intentionally receives NO database credentials.
+// External-system and ETL execution belong in a separate job (future
+// Jenkinsfile.etl), not here.
+
 pipeline {
     agent { label 'windows' }
 
+    options {
+        timeout(time: 20, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+
     environment {
-        DB_CREDENTIALS = credentials('postgres-etl-api')
-        DB_HOST = 'localhost'
-        DB_PORT = '5432'
-        DB_NAME = 'etl_api'
+        PYTHONUTF8 = '1'
+        PYTHONDONTWRITEBYTECODE = '1'
+        PIP_DISABLE_PIP_VERSION_CHECK = '1'
+        VENV_PY = '.venv\\Scripts\\python.exe'
+        PYTEST_OPTS = '-v -p no:cacheprovider'
     }
 
     stages {
@@ -25,55 +39,96 @@ pipeline {
             }
         }
 
-        stage('Setup Environment') {
+        stage('Workspace Guard') {
             steps {
+                // Fail if a local .env exists: CI must never load local credentials.
+                // Only existence is checked; the file is never read or printed.
                 bat '''
-                if not exist .venv (
-                    python -m venv .venv
+                if exist .env (
+                    echo ERROR: a .env file must not exist in the CI workspace.
+                    exit /b 1
                 )
-
-                call .venv\\Scripts\\activate.bat
-
-                python -m pip install --upgrade pip
-                python -m pip install -r requirements.txt
                 '''
+
+                // Remove stale JUnit reports (git-ignored, never tracked)
+                bat 'if exist reports\\*.xml del /q reports\\*.xml'
             }
         }
 
-        stage('Run ETL') {
+        stage('Setup Python') {
             steps {
-                bat '''
-                call .venv\\Scripts\\activate.bat
-
-                set DB_USER=%DB_CREDENTIALS_USR%
-                set DB_PASSWORD=%DB_CREDENTIALS_PSW%
-
-                python src\\main.py
-                '''
+                bat 'python --version'
+                bat 'if exist .venv rmdir /s /q .venv'
+                bat 'python -m venv .venv'
             }
         }
 
-        stage('Run Tests') {
+        stage('Install Dependencies') {
             steps {
-                bat '''
-                call .venv\\Scripts\\activate.bat
+                bat '%VENV_PY% -m pip install -r requirements-dev.txt'
+                bat '%VENV_PY% -m pip check'
+            }
+        }
 
-                set DB_USER=%DB_CREDENTIALS_USR%
-                set DB_PASSWORD=%DB_CREDENTIALS_PSW%
+        stage('Ruff') {
+            steps {
+                bat '%VENV_PY% -m ruff check src tests --no-cache'
+            }
+        }
 
-                pytest -v
-                '''
+        stage('Offline Tests') {
+            environment {
+                // Tripwire: an accidental API request fails locally instead of
+                // reaching the real external API.
+                API_BASE_URL = 'http://127.0.0.1:9'
+            }
+
+            // Three disjoint selections: 11 + 43 + 38 = 92 tests, each run once.
+            // catchError lets every group run and publish results; any failure
+            // still marks its stage and the build as FAILURE.
+            stages {
+                stage('API Client') {
+                    steps {
+                        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            bat '%VENV_PY% -m pytest -m api %PYTEST_OPTS% -o junit_suite_name=api --junitxml=reports\\api.xml'
+                        }
+                    }
+                }
+
+                stage('Unit') {
+                    steps {
+                        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            bat '%VENV_PY% -m pytest -m "unit and not api" %PYTEST_OPTS% -o junit_suite_name=unit --junitxml=reports\\unit.xml'
+                        }
+                    }
+                }
+
+                stage('Offline Data Quality') {
+                    steps {
+                        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            bat '%VENV_PY% -m pytest -m "not integration and not unit" %PYTEST_OPTS% -o junit_suite_name=offline-data --junitxml=reports\\offline-data.xml'
+                        }
+                    }
+                }
             }
         }
     }
 
     post {
+        always {
+            junit allowEmptyResults: true, testResults: 'reports/*.xml'
+        }
+
         success {
-            echo 'ETL pipeline completed successfully.'
+            echo 'Offline quality gate passed.'
         }
 
         failure {
-            echo 'ETL pipeline failed. Check the console logs.'
+            echo 'Offline quality gate failed. Check the stage logs and test results.'
+        }
+
+        cleanup {
+            deleteDir()
         }
     }
 }

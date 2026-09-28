@@ -2,6 +2,12 @@ from config.settings import PROCESSED_DATA_DIR, RAW_DATA_DIR
 from utils.json_files import read_json, write_json
 
 
+# Business rule: product_name = original source title + " - RP".
+# Always built from the raw title (never from an already processed name),
+# so re-running the ETL cannot append the suffix twice.
+PRODUCT_NAME_SUFFIX = " - RP"
+
+
 def load_raw_products():
     data = read_json(RAW_DATA_DIR / "products.json")
 
@@ -16,7 +22,7 @@ def transform_product(product):
 
     transformed_product = {
         "product_id": product["id"],
-        "product_name": product["title"],
+        "product_name": product["title"] + PRODUCT_NAME_SUFFIX,
         "category": product["category"],
         "price": product["price"],
         "discount_percentage": product["discountPercentage"],

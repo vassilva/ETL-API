@@ -1,0 +1,16 @@
+[
+    {
+        "cart_id": 1,
+        "products": [
+            {
+                "product_id": 7,
+                "product_name": "n",
+                "price": 1,
+                "quantity": 2,
+                "total": 2,
+                "discount_percentage": 0,
+                "discounted_total": 2
+            }
+        ]
+    }
+]

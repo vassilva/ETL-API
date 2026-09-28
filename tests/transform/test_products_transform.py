@@ -29,12 +29,41 @@ def test_products_id_mapping(products_transform_data):
         assert processed_product["product_id"] == raw_product["id"]
 
 
-# Validate that title is correctly mapped to product_name
+# Validate product_name = raw title + " - RP" (exact, matched by product id)
 def test_products_name_mapping(products_transform_data):
     raw_products, processed_products = products_transform_data
 
     for raw_product, processed_product in zip(raw_products, processed_products):
-        assert processed_product["product_name"] == raw_product["title"]
+        assert processed_product["product_id"] == raw_product["id"]
+        assert processed_product["product_name"] == raw_product["title"] + " - RP"
+
+
+# Validate that every product keeps its complete original title as the prefix
+# and gets the " - RP" suffix exactly once
+def test_products_name_suffix_exactly_once(products_transform_data):
+    raw_products, processed_products = products_transform_data
+
+    for raw_product, processed_product in zip(raw_products, processed_products):
+        title = raw_product["title"]
+        product_name = processed_product["product_name"]
+
+        assert product_name[:len(title)] == title
+        assert product_name[len(title):] == " - RP"
+        assert not product_name.endswith(" - RP - RP")
+        assert product_name.count(" - RP") == title.count(" - RP") + 1
+
+
+# Validate that the committed processed snapshot is exactly the transformation
+# of the raw snapshot (every field, every product), so only the fields changed
+# by the transformation rules can differ from the raw data
+def test_processed_products_snapshot_matches_transformation(
+    products_transform_data,
+    processed_products
+):
+    raw_products, expected_products = products_transform_data
+
+    assert len(processed_products) == len(raw_products)
+    assert processed_products == expected_products
 
 
 # Validate that category is correctly mapped

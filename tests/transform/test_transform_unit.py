@@ -70,7 +70,7 @@ def test_transform_product_maps_all_fields(synthetic_payload):
 
     assert transform_product(raw_product) == {
         "product_id": 101,
-        "product_name": "Synthetic Widget",
+        "product_name": "Synthetic Widget - RP",
         "category": "test-category",
         "price": 100.0,
         "discount_percentage": 12.5,
@@ -91,9 +91,48 @@ def test_transform_product_without_brand(synthetic_payload):
     assert transform_product(raw_product)["brand"] is None
 
 
+# Validate product_name = original title + " - RP": the whole original title is
+# kept unchanged as the prefix and the suffix is added exactly once
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Synthetic Widget",
+        "Ámélie Café Crème",               # non-ASCII characters unchanged
+        "  Padded  Name  ",                # inner and outer whitespace unchanged
+        "RP Product - Special Edition",    # existing "RP" and " - " text unchanged
+        "Name - R",                        # suffix-like ending is not merged
+    ]
+)
+def test_transform_product_name_appends_rp_suffix(synthetic_payload, title):
+    raw_product = synthetic_payload("products")["products"][0]
+    raw_product["title"] = title
+
+    product_name = transform_product(raw_product)["product_name"]
+
+    assert product_name == title + " - RP"
+    assert product_name[:len(title)] == title
+    assert product_name[len(title):] == " - RP"
+    assert product_name.count(" - RP") == title.count(" - RP") + 1
+
+
+# Validate that the raw title is never modified and that transforming the same
+# raw record again yields the same name (the suffix never accumulates)
+def test_transform_product_name_is_repeatable(synthetic_payload):
+    raw_product = synthetic_payload("products")["products"][0]
+    original = copy.deepcopy(raw_product)
+
+    first = transform_product(raw_product)
+    second = transform_product(raw_product)
+
+    assert raw_product == original
+    assert first["product_name"] == "Synthetic Widget - RP"
+    assert second["product_name"] == first["product_name"]
+
+
 # Carts
 
-# Validate the cart mapping including the nested product list
+# Validate the cart mapping including the nested product list. Cart item names
+# keep the original title: the " - RP" rule applies to products only
 def test_transform_cart_maps_cart_and_products(synthetic_payload):
     raw_cart = synthetic_payload("carts")["carts"][0]
 

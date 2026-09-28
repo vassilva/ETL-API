@@ -1,6 +1,6 @@
 import pytest
 
-from config.settings import PROCESSED_DATA_DIR
+from config.settings import PROCESSED_DATA_DIR, RAW_DATA_DIR
 from database.connection import get_connection
 from support.artifacts import read_artifact
 
@@ -20,8 +20,14 @@ def db_connection():
 
 
 # Database tests reconcile PostgreSQL against the runtime artifacts in
-# data/processed (exactly what the last 'python src/main.py --load' loaded),
-# not against the versioned snapshot used by offline tests.
+# data/raw and data/processed (exactly what the last real ETL run extracted
+# and loaded), not against the versioned snapshot used by offline tests.
+
+@pytest.fixture(scope="session")
+def raw_products():
+    """Source products exactly as extracted by the last real ETL run."""
+    return read_artifact(RAW_DATA_DIR / "products.json")["products"]
+
 
 @pytest.fixture(scope="session")
 def processed_users():

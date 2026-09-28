@@ -1,0 +1,11 @@
+[
+    {
+        "cart_id": 1,
+        "user_id": 2,
+        "total": 3,
+        "discounted_total": 4,
+        "total_products": 5,
+        "total_quantity": 6,
+        "products": []
+    }
+]

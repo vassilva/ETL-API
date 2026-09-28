@@ -75,6 +75,11 @@ BUSINESS_RULES = {
         SELECT COUNT(*) FROM users
         WHERE email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
     """,
+    "products.product_name ends with exactly one ' - RP'": """
+        SELECT COUNT(*) FROM products
+        WHERE product_name NOT LIKE '% - RP'
+           OR product_name LIKE '% - RP - RP'
+    """,
     "products.price > 0": """
         SELECT COUNT(*) FROM products WHERE price <= 0
     """,

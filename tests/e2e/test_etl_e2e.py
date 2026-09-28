@@ -102,6 +102,20 @@ def test_raw_matches_live_api(first_run, source_data, resource):
     )
 
 
+# Extract preserves the source product name exactly (API title == RAW title)
+def test_raw_product_names_match_live_api(first_run, source_data):
+    raw_titles = {
+        product["id"]: product["title"]
+        for product in first_run["artifacts"]["raw"]["products"]["products"]
+    }
+    source_titles = {
+        product["id"]: product["title"]
+        for product in source_data["products"]["products"]
+    }
+
+    assert raw_titles == source_titles
+
+
 # Transform
 
 def mismatched_ids(actual, expected, resource):
@@ -128,6 +142,24 @@ def test_processed_is_transform_of_raw(first_run, resource):
     )
 
     assert differing == [], f"{resource}: processed records differ (ids: {differing})"
+
+
+# PROCESSED product_name = RAW title + " - RP" for every product, by product_id
+def test_processed_product_names_are_raw_plus_suffix(first_run):
+    artifacts = first_run["artifacts"]
+    raw_titles = {
+        product["id"]: product["title"]
+        for product in artifacts["raw"]["products"]["products"]
+    }
+    processed_names = {
+        product["product_id"]: product["product_name"]
+        for product in artifacts["processed"]["products"]
+    }
+
+    assert processed_names.keys() == raw_titles.keys()
+
+    for product_id, title in raw_titles.items():
+        assert processed_names[product_id] == title + " - RP"
 
 
 @pytest.mark.parametrize("resource", RESOURCES)
@@ -214,7 +246,7 @@ def test_products_source_values_in_database(first_run, source_data):
     for product in source_data["products"]["products"]:
         actual = database_by_id[product["id"]]
 
-        assert actual["product_name"] == product["title"]
+        assert actual["product_name"] == product["title"] + " - RP"
         assert actual["category"] == product["category"]
         assert actual["price"] == money(product["price"])
         assert actual["discount_percentage"] == money(product["discountPercentage"])
@@ -247,6 +279,8 @@ def test_cart_items_source_values_in_database(first_run, source_data):
             actual = database_by_key[(cart["id"], position)]
 
             assert actual["product_id"] == product["id"]
+            # The " - RP" rule applies to products only; cart items keep the title
+            assert actual["product_name"] == product["title"]
             assert actual["quantity"] == product["quantity"]
             assert actual["price"] == money(product["price"])
             assert actual["total"] == money(product["total"])
@@ -278,6 +312,20 @@ def test_second_run_leaves_table_content_unchanged(first_run, second_run, table)
         second_run["state"]["fingerprints"][table]
         == first_run["state"]["fingerprints"][table]
     )
+
+
+def test_second_run_keeps_single_rp_suffix(second_run, source_data):
+    # Re-running must not stack the suffix (" - RP - RP") or add product rows
+    database_by_id = index_by(second_run["state"]["rows"]["products"], "product_id")
+    source_titles = {
+        product["id"]: product["title"]
+        for product in source_data["products"]["products"]
+    }
+
+    assert database_by_id.keys() == source_titles.keys()
+
+    for product_id, title in source_titles.items():
+        assert database_by_id[product_id]["product_name"] == title + " - RP"
 
 
 @pytest.mark.parametrize("table", TABLE_KEYS)

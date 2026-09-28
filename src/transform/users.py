@@ -1,9 +1,9 @@
-import json
+from config.settings import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from utils.json_files import read_json, write_json
 
 
 def load_raw_users():
-    with open("data/raw/users.json", "r", encoding="utf-8") as file:
-        data = json.load(file)
+    data = read_json(RAW_DATA_DIR / "users.json")
 
     return data["users"]
 
@@ -26,21 +26,20 @@ def transform_user(user):
     return transformed_user
 
 
-def transform_users():
-    users = load_raw_users()
-
-    transformed_users = [
+def transform_users_data(users):
+    """Pure transformation: raw users -> processed users (no I/O)."""
+    return [
         transform_user(user)
         for user in users
     ]
 
-    with open("data/processed/users.json", "w", encoding="utf-8") as file:
-        json.dump(
-            transformed_users,
-            file,
-            ensure_ascii=False,
-            indent=4
-        )
+
+def transform_users():
+    users = load_raw_users()
+
+    transformed_users = transform_users_data(users)
+
+    write_json(PROCESSED_DATA_DIR / "users.json", transformed_users)
 
     print("Users transformed:", len(transformed_users))
 

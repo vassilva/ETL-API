@@ -1,5 +1,26 @@
 # Environment variables / secrets
 .env
+.env.*
+!.env.example
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Database dumps and backups
+*.dump
+*.backup
+*.bak
+*.sql.gz
+*.sql.zip
+
+# Power BI files (may embed data and connection details)
+*.pbix
+*.pbit
 
 # Python virtual environments
 .venv/
@@ -12,9 +33,19 @@ __pycache__/
 # Pytest
 .pytest_cache/
 
+# Lint cache
+.ruff_cache/
+
 # Coverage
 .coverage
+.coverage.*
 htmlcov/
+
+# Test reports (may contain assertion output)
+reports/*
+!reports/.gitkeep
+junit*.xml
+report*.html
 
 # Logs
 *.log

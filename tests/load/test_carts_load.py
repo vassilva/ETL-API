@@ -1,26 +1,14 @@
-import json
 import pytest
 from decimal import Decimal
 
-from load.database import get_connection
+from support.db_helpers import fetch_records, index_by
 
 
-@pytest.fixture(scope="module")
-def db_connection():
-    connection = get_connection()
-
-    yield connection
-
-    connection.close()
-
-
-@pytest.fixture(scope="module")
-def processed_carts():
-    with open("data/processed/carts.json", "r", encoding="utf-8") as file:
-        return json.load(file)
+pytestmark = [pytest.mark.load, pytest.mark.database, pytest.mark.artifacts]
 
 
 # Validate processed Carts count against PostgreSQL
+@pytest.mark.smoke
 def test_carts_count(processed_carts, db_connection):
     cursor = db_connection.cursor()
 
@@ -75,9 +63,8 @@ def test_carts_have_valid_users(db_connection):
 
 # Validate Carts field by field: Processed JSON vs PostgreSQL
 def test_carts_data_reconciliation(processed_carts, db_connection):
-    cursor = db_connection.cursor()
-
-    cursor.execute(
+    database_carts = fetch_records(
+        db_connection,
         """
         SELECT
             cart_id,
@@ -90,21 +77,7 @@ def test_carts_data_reconciliation(processed_carts, db_connection):
         """
     )
 
-    database_carts = cursor.fetchall()
-
-    cursor.close()
-
-    database_by_id = {
-        row[0]: {
-            "cart_id": row[0],
-            "user_id": row[1],
-            "total": row[2],
-            "discounted_total": row[3],
-            "total_products": row[4],
-            "total_quantity": row[5]
-        }
-        for row in database_carts
-    }
+    database_by_id = index_by(database_carts, "cart_id")
 
     for expected_cart in processed_carts:
         cart_id = expected_cart["cart_id"]

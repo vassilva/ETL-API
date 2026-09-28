@@ -1,0 +1,30 @@
+{
+    "products": [
+        {
+            "id": 101,
+            "title": "Synthetic Widget",
+            "category": "test-category",
+            "price": 100.0,
+            "discountPercentage": 12.5,
+            "rating": 4.5,
+            "stock": 10,
+            "brand": "TestBrand",
+            "sku": "TST-0101",
+            "availabilityStatus": "In Stock"
+        },
+        {
+            "id": 102,
+            "title": "Unbranded Gadget",
+            "category": "test-category",
+            "price": 19.99,
+            "discountPercentage": 10.0,
+            "rating": 3.0,
+            "stock": 0,
+            "sku": "TST-0102",
+            "availabilityStatus": "Out of Stock"
+        }
+    ],
+    "total": 2,
+    "skip": 0,
+    "limit": 2
+}

@@ -1,18 +1,20 @@
 import pytest
 
-from transform.products import load_raw_products
-from transform.products import transform_products
+from transform.products import transform_products_data
+
+
+pytestmark = [pytest.mark.transform, pytest.mark.artifacts]
 
 
 @pytest.fixture(scope="module")
-def products_transform_data():
-    raw_products = load_raw_products()
-    processed_products = transform_products()
+def products_transform_data(raw_products):
+    processed_products = transform_products_data(raw_products)
 
     return raw_products, processed_products
 
 
 # Validate that the number of processed products matches the number of raw products
+@pytest.mark.smoke
 def test_products_transform_count(products_transform_data):
     raw_products, processed_products = products_transform_data
 

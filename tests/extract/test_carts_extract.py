@@ -1,16 +1,19 @@
 import pytest
-from extract.carts import extract_carts
-from extract.products import extract_products
+from extract.carts import fetch_carts
+from extract.products import fetch_products
+
+
+pytestmark = [pytest.mark.extract, pytest.mark.live_api]
 
 
 @pytest.fixture(scope="module")
 def carts_data():
-    return extract_carts()
+    return fetch_carts()
 
 
 @pytest.fixture(scope="module")
 def products_data():
-    return extract_products()
+    return fetch_products()
 
 
 # Validate that the extraction returns cart data
@@ -22,6 +25,7 @@ def test_extract_carts_returns_data(carts_data):
 
 
 # Validate that the number of extracted carts matches the total reported by the API
+@pytest.mark.smoke
 def test_extract_carts_count(carts_data):
     carts, total = carts_data
 

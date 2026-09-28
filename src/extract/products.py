@@ -1,20 +1,13 @@
-import json
-import requests
+from extract.common import extract_resource, fetch_resource
 
-URL = "https://dummyjson.com/products?limit=0"
+RESOURCE = "products"
+
+
+def fetch_products():
+    """Fetch products from the API without writing data/raw (used by tests)."""
+    return fetch_resource(RESOURCE)
 
 
 def extract_products():
-    response = requests.get(URL)
-    response.raise_for_status()
-
-    data = response.json()
-    products = data["products"]
-    total = data["total"]
-
-    with open("data/raw/products.json", "w", encoding="utf-8") as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-
-    print("Products extracted:", len(products))
-
-    return products, total
+    """Fetch products, save data/raw/products.json and return (products, total)."""
+    return extract_resource(RESOURCE, "Products")

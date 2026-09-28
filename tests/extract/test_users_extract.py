@@ -1,10 +1,13 @@
 import pytest
-from extract.users import extract_users
+from extract.users import fetch_users
+
+
+pytestmark = [pytest.mark.extract, pytest.mark.live_api]
 
 
 @pytest.fixture(scope="module")
 def users_data():
-    return extract_users()
+    return fetch_users()
 
 
 # Validate that the extraction returns user data
@@ -16,6 +19,7 @@ def test_extract_users_returns_data(users_data):
 
 
 # Validate that the number of extracted users matches the total reported by the API
+@pytest.mark.smoke
 def test_extract_users_count(users_data):
     users, total = users_data
 

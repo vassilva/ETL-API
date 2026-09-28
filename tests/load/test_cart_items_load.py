@@ -1,33 +1,14 @@
-import json
 import pytest
 
-from decimal import Decimal, ROUND_HALF_UP
-from load.database import get_connection
+from support.db_helpers import fetch_records, index_by
+from support.decimals import decimal_2
 
 
-def decimal_2(value):
-    return Decimal(str(value)).quantize(
-        Decimal("0.01"),
-        rounding=ROUND_HALF_UP
-    )
-
-
-@pytest.fixture(scope="module")
-def db_connection():
-    connection = get_connection()
-
-    yield connection
-
-    connection.close()
-
-
-@pytest.fixture(scope="module")
-def processed_carts():
-    with open("data/processed/carts.json", "r", encoding="utf-8") as file:
-        return json.load(file)
+pytestmark = [pytest.mark.load, pytest.mark.database, pytest.mark.artifacts]
 
 
 # Validate total Cart Items count against PostgreSQL
+@pytest.mark.smoke
 def test_cart_items_count(processed_carts, db_connection):
     expected_count = sum(
         len(cart["products"])
@@ -108,9 +89,8 @@ def test_cart_items_positions_are_unique(db_connection):
 
 # Validate Cart Items field by field: Processed JSON vs PostgreSQL
 def test_cart_items_data_reconciliation(processed_carts, db_connection):
-    cursor = db_connection.cursor()
-
-    cursor.execute(
+    database_items = fetch_records(
+        db_connection,
         """
         SELECT
             cart_id,
@@ -126,24 +106,7 @@ def test_cart_items_data_reconciliation(processed_carts, db_connection):
         """
     )
 
-    database_items = cursor.fetchall()
-
-    cursor.close()
-
-    database_by_key = {
-        (row[0], row[1]): {
-            "cart_id": row[0],
-            "item_position": row[1],
-            "product_id": row[2],
-            "product_name": row[3],
-            "price": row[4],
-            "quantity": row[5],
-            "total": row[6],
-            "discount_percentage": row[7],
-            "discounted_total": row[8]
-        }
-        for row in database_items
-    }
+    database_by_key = index_by(database_items, "cart_id", "item_position")
 
     for cart in processed_carts:
         cart_id = cart["cart_id"]
@@ -186,7 +149,6 @@ def test_cart_items_data_reconciliation(processed_carts, db_connection):
             # Validate Cart Items aggregated values against Cart totals
 def test_cart_items_aggregates_match_carts(db_connection):
     cursor = db_connection.cursor()
-
 
 
     cursor.execute(

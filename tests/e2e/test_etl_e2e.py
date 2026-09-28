@@ -256,6 +256,29 @@ def test_products_source_values_in_database(first_run, source_data):
         assert actual["sku"] == product["sku"]
 
 
+# Control total: total product stock is preserved across every ETL boundary.
+# Complements the record-level stock checks above; every total is calculated
+# from its own dataset in this run (the whole products table for the database)
+def test_products_stock_control_total(first_run, source_data):
+    artifacts = first_run["artifacts"]
+
+    totals = {
+        "Source": sum(product["stock"] for product in source_data["products"]["products"]),
+        "Raw": sum(product["stock"] for product in artifacts["raw"]["products"]["products"]),
+        "Processed": sum(product["stock"] for product in artifacts["processed"]["products"]),
+        "Database": sum(row["stock"] for row in first_run["state"]["rows"]["products"]),
+    }
+
+    report = ", ".join(f"{stage} total stock: {total}" for stage, total in totals.items())
+    stages = list(totals)
+
+    # Checked boundary by boundary, so a failure names where the total diverged
+    for upstream, downstream in zip(stages, stages[1:]):
+        assert totals[downstream] == totals[upstream], (
+            f"Stock control total diverged between {upstream} and {downstream}. {report}"
+        )
+
+
 def test_carts_source_values_in_database(first_run, source_data):
     database_by_id = index_by(first_run["state"]["rows"]["carts"], "cart_id")
 

@@ -6,7 +6,7 @@ This project implements an end-to-end ETL pipeline designed to simulate a produc
 
 The solution extracts data from external REST APIs, applies transformation and data quality rules, loads the processed data into PostgreSQL, and automatically validates the resulting datasets through an automated test suite.
 
-Jenkins is used as the Continuous Integration layer. The main `Jenkinsfile` is an offline quality gate (lint + offline tests); ETL and external-system execution will be handled by a separate Jenkins job in the future.
+Jenkins is used as the Continuous Integration layer. A single Multibranch Pipeline (one root `Jenkinsfile`) runs an offline quality gate (lint + offline tests) followed by the real Integration / E2E layer: live API checks, the real ETL into PostgreSQL, database validation and idempotency.
 
 The project was developed as a hands-on environment for practicing ETL testing, database validation, pipeline automation, Git workflows, and CI/CD concepts from a QA/Data QA perspective.
 
@@ -68,7 +68,7 @@ Power BI is used as the reporting and business validation layer on top of the Po
 
 ```text
 src/
-├── main.py                 # Pipeline entry point: extract + transform (no load)
+├── main.py                 # Pipeline entry point: extract + transform (+ load with --load)
 ├── config/settings.py      # Centralized configuration (the only env reader)
 ├── api/client.py           # HTTP client: base URL, timeout, status checks, safe errors
 ├── extract/                # Fetch source resources and save data/raw
@@ -80,14 +80,15 @@ src/
 tests/
 ├── conftest.py             # Shared fixtures, regression marker
 ├── support/                # Test helpers (read-only DB queries, value-hiding assertions)
-├── fixtures/               # Synthetic data only
+├── fixtures/               # Synthetic data + snapshot/ (versioned copy of one real run)
 ├── api/                    # API client unit tests (mocked HTTP)
 ├── extract/                # Live API data quality + offline extract unit tests
 ├── transform/              # Mapping/rule tests on generated files + synthetic unit tests
-└── load/                   # PostgreSQL reconciliation (read-only) + offline DB unit tests
+├── load/                   # PostgreSQL reconciliation (read-only) + offline DB unit tests
+└── e2e/                    # Opt-in end-to-end ETL run + idempotency (writes data/ and PostgreSQL)
 
-data/raw, data/processed    # Generated pipeline artifacts
-sql/                        # DDL reference (never executed automatically)
+data/raw, data/processed    # Runtime ETL artifacts (git-ignored, rewritten by every run)
+sql/create_tables.sql       # Target schema DDL (IF NOT EXISTS; never executed automatically)
 reports/                    # Local test reports (git-ignored)
 ```
 
@@ -108,15 +109,46 @@ Run the pipeline (extract + transform) from the project root:
 python src/main.py
 ```
 
-The load step is run manually and only when intended, from the `src` directory:
+Run the complete ETL, including the load into PostgreSQL (requires the `DB_*` settings and the tables from `sql/create_tables.sql`):
 
 ```text
-cd src
-python -m load.users
-python -m load.products
-python -m load.carts
-python -m load.cart_items
+python src/main.py --load
 ```
+
+Or one stage at a time (this is how Jenkins runs it, so each stage is reported separately):
+
+```text
+python src/main.py --stage extract
+python src/main.py --stage transform
+python src/main.py --stage load
+```
+
+Loading is opt-in: without `--load` / `--stage load` the pipeline never touches the database. Missing `DB_*` settings stop the run before any work, and only the variable names are reported. The load upserts in foreign-key order (users, products, carts, cart_items), so running it again updates rows in place instead of duplicating them (see [Idempotency](#idempotency)).
+
+### PostgreSQL requirements
+
+- PostgreSQL reachable from the machine that runs the ETL (locally: the `.env` settings; in CI: the Windows Jenkins agent).
+- The four target tables, created once with `sql/create_tables.sql` (`CREATE TABLE IF NOT EXISTS`, never drops anything). The upserts rely on its primary keys and on `UNIQUE (cart_id, item_position)`.
+- A database user allowed to `SELECT`, `INSERT` and `UPDATE` these tables.
+
+Configuration is read only from environment variables (or the local `.env`); names only:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | for load and database tests | connection target |
+| `DB_USER`, `DB_PASSWORD` | for load and database tests | secret; never logged |
+| `API_BASE_URL`, `API_TIMEOUT_SECONDS`, `DB_CONNECT_TIMEOUT_SECONDS` | optional | defaults in `src/config/settings.py` |
+
+### Runtime artifacts vs versioned snapshot
+
+| Location | Tracked in Git | Written by | Used by |
+|---|---|---|---|
+| `data/raw`, `data/processed` | No (git-ignored) | every real ETL run | the load step, database tests, E2E; inspect them here after a run |
+| `tests/fixtures/snapshot/raw`, `.../processed` | Yes | nobody automatically (reviewed refresh only) | offline Data Quality tests |
+
+The source API regenerates metadata such as `meta.createdAt` / `meta.updatedAt` on every request, so a committed `data/` directory became modified after every legitimate ETL run. Runtime output is therefore git-ignored and a real ETL / E2E run leaves `git status` clean, while offline tests keep running against a fixed, reviewed snapshot.
+
+Business-data changes are not ignored: the E2E test `test_processed_matches_versioned_snapshot` compares the loaded (processed) data with the snapshot and fails, reporting only the differing record IDs, if the source business data changes. Untransformed metadata is not part of the processed data and cannot trigger it. To accept a reviewed source change, run the ETL and copy `data/raw/*.json` and `data/processed/*.json` into `tests/fixtures/snapshot/raw` and `.../processed`, then commit the snapshot.
 
 ---
 
@@ -135,14 +167,27 @@ Tests are grouped by ETL stage and tagged with Pytest markers (similar to tags i
 | `pytest -m live_api` | Source data checks with real GET requests to the external API |
 | `pytest -m database` | PostgreSQL reconciliation (read-only session) |
 | `pytest -m extract` / `transform` / `load` | One ETL stage |
+| `pytest -m e2e --run-e2e` | Real end-to-end ETL run (API -> data/ -> PostgreSQL), run twice to validate idempotency |
+
+Test layers:
+
+| Layer | Selection | Tests | Needs |
+|---|---|---|---|
+| Offline: API Client | `-m api` | 11 | nothing |
+| Offline: Unit | `-m "unit and not api"` | 43 | nothing |
+| Offline: Data Quality | `-m "not integration and not unit"` | 38 | versioned snapshot |
+| Integration: live API | `-m "live_api and not e2e"` | 21 | network |
+| Integration: PostgreSQL | `-m "database and not e2e"` | 28 | PostgreSQL + runtime artifacts from a real ETL run |
+| E2E | `-m e2e --run-e2e` | 65 | network + PostgreSQL; writes `data/` and the database |
 
 Marker meaning:
 
 - `api` vs `live_api`: `api` tests *our client code* offline; `live_api` calls the *real source API*.
 - `integration`: requires an external system. Added automatically (in `tests/conftest.py`) to every `live_api` and `database` test, so it never needs to be written by hand.
-- `artifacts`: requires generated files in `data/`. Run `python src/main.py` first; the tests fail with a clear message if files are missing.
+- `artifacts`: uses pipeline files. Offline tests read the versioned snapshot in `tests/fixtures/snapshot`; database tests read the runtime files in `data/processed` (what the last `python src/main.py --load` loaded) and fail with a clear message if they are missing.
 - `database`: uses a read-only PostgreSQL session; tests cannot modify data.
-- Tests never write to `data/` or to the database.
+- `e2e`: executes `python src/main.py --load` twice, checks the loaded data against the versioned snapshot (business-data drift), then validates row counts against the live API, key uniqueness, referential integrity, mandatory fields, business rules, source-to-database values, and idempotency (no duplicates, unchanged content, every row upserted in place). It **writes** to `data/` and upserts into PostgreSQL, so it is skipped unless `--run-e2e` is given. It is also `live_api` + `database`, so it is never part of the offline selections.
+- Apart from `e2e`, tests never write to `data/` or to the database.
 - Assertions on personal-data fields report only the record ID and field name, never the values.
 
 Lint: `ruff check src tests`
@@ -210,10 +255,11 @@ The load layer preserves relationships between datasets and provides the target 
 
 Automated Data Quality checks are implemented using Pytest.
 
-The regression suite contains **141 automated tests** covering the Extract, Transform, and Load layers:
+The regression suite contains **206 automated tests** covering the Extract, Transform, and Load layers:
 
 - 87 data quality tests against the live API, generated pipeline files, and PostgreSQL
 - 54 offline unit tests using synthetic data (API client, extract, transform, database/load infrastructure)
+- 65 opt-in end-to-end tests that run the real ETL twice (skipped without `--run-e2e`)
 
 The validations include:
 
@@ -229,6 +275,20 @@ The validations include:
 - Cart-to-product relationship validation
 
 The objective is not only to verify that the ETL process executes successfully, but also to ensure that the data produced by the pipeline remains accurate, complete, consistent, and traceable.
+
+---
+
+## Idempotency
+
+The load is an UPSERT per table (`INSERT ... ON CONFLICT (key) DO UPDATE`), keyed by `user_id`, `product_id`, `cart_id` and `(cart_id, item_position)`. The E2E suite runs the complete ETL twice against the same database and proves that the second run:
+
+- keeps every row count unchanged (and equal to the live API totals);
+- creates no duplicate primary or business keys (`user_id`, `email`, `product_id`, `sku`, `cart_id`, `cart_item_id`, `(cart_id, item_position)`);
+- keeps referential integrity (carts -> users, cart_items -> carts, cart_items -> products);
+- leaves the content of every table identical (hash of every column of every row, including the `cart_items` identity key, so rows are updated in place, not deleted and re-inserted);
+- really takes the UPSERT update path for every existing row (each row gets a new PostgreSQL row version, `xmin`).
+
+The E2E tests only read the database (read-only session); all writes go through the real ETL entry point.
 
 ---
 
@@ -255,7 +315,7 @@ The Jenkins pipeline definition is stored as code in the repository using a `Jen
 
 This allows the CI configuration to be version-controlled together with the application and test code.
 
-The main `Jenkinsfile` is an **offline CI Quality Gate**. It needs no database, no DB credentials, no `.env`, and no access to the source API. Network access is used only to install dependencies from PyPI.
+There is **one** Jenkins Multibranch Pipeline (`ETL-API-Pipeline`) and **one** root `Jenkinsfile`, with clearly separated test layers:
 
 ```text
 Checkout
@@ -264,62 +324,70 @@ Checkout
 Build Information
    |
    v
-Workspace Guard        (fails if a .env file exists; removes stale reports)
+Workspace Guard          (fails if a .env file exists; removes stale reports)
    |
    v
-Setup Python           (fresh .venv every build)
+Setup Python             (fresh .venv every build)
    |
    v
-Install Dependencies   (requirements-dev.txt + pip check)
+Install Dependencies     (requirements-dev.txt + pip check)
    |
    v
 Ruff
    |
    v
-Offline Tests
+Offline Tests            (no API, no database, no credentials)
    +---- API Client
    +---- Unit
    +---- Offline Data Quality
    |
    v
-Publish JUnit results  (always)
+Real Integration / E2E   (only after the offline gate passed)
+   +---- Environment Validation   (config present? credential present? DB reachable?)
+   +---- Live DummyJSON
+   +---- Extract
+   +---- Transform
+   +---- Load                     (DB credentials bound here)
+   +---- PostgreSQL Validation    (DB credentials bound here)
+   +---- E2E + Idempotency        (DB credentials bound here)
    |
    v
-Cleanup                (workspace deleted)
+Publish JUnit results    (always)
+   |
+   v
+GitHub Checks            (final build result, reported by the Multibranch GitHub integration)
+   |
+   v
+Cleanup                  (workspace deleted, including runtime data/)
 ```
 
-The pipeline executes on a dedicated Windows Jenkins agent.
+The pipeline executes on the dedicated Windows Jenkins agent.
 
-| Stage | Command | Tests | JUnit report |
+| Stage | Command | Tests | JUnit report (suite name) |
 |---|---|---|---|
 | Ruff | `ruff check src tests --no-cache` | - | - |
-| API Client | `pytest -m api` | 11 | `reports/api.xml` |
-| Unit | `pytest -m "unit and not api"` | 43 | `reports/unit.xml` |
-| Offline Data Quality | `pytest -m "not integration and not unit"` | 38 | `reports/offline-data.xml` |
+| API Client | `pytest -m api` | 11 | `reports/api.xml` (`api`) |
+| Unit | `pytest -m "unit and not api"` | 43 | `reports/unit.xml` (`unit`) |
+| Offline Data Quality | `pytest -m "not integration and not unit"` | 38 | `reports/offline-data.xml` (`offline-data`) |
+| Environment Validation | agent variables + credential check + read-only `python -m database.connection` | - | - |
+| Live DummyJSON | `pytest -m "live_api and not e2e"` | 21 | `reports/integration-live-api.xml` (`integration-live-api`) |
+| Extract / Transform / Load | `python src/main.py --stage extract` / `transform` / `load` | - | - |
+| PostgreSQL Validation | `pytest -m "database and not e2e"` | 28 | `reports/integration-database.xml` (`integration-database`) |
+| E2E + Idempotency | `pytest -m e2e --run-e2e` | 65 | `reports/e2e.xml` (`e2e`) |
 
-The three test selections do not overlap: **92 tests are executed once per build**.
+The offline selections do not overlap (92 tests), and the integration and E2E selections do not overlap with them or with each other: a full build executes **206 tests**, each once. Each layer is a separate JUnit suite, so API Client, Unit, Offline Data Quality, Integration and E2E results are distinguishable in Jenkins.
 
 Behavior:
 
 - Dependency installation or Ruff failures stop the pipeline before any test runs.
-- All three test groups always run; a failing group marks its stage and the build as FAILURE.
-- JUnit results are published after every build, including failed ones.
-- During the test stages `API_BASE_URL` points to an unreachable local address, so an accidental API request fails immediately instead of reaching the real API.
-- Builds time out after 20 minutes, never run concurrently, and the last 30 builds are kept.
-
-Intentionally **not** executed by this `Jenkinsfile`:
-
-| Selection | Tests | Reason |
-|---|---|---|
-| `live_api` | 21 | Requires the external source API |
-| `database` | 28 | Requires PostgreSQL and DB credentials |
-| `integration` | 49 | `live_api` + `database` |
-| `smoke` | 10 | Includes `live_api` and `database` tests |
-| `regression` | 141 | Full suite, includes external systems |
-| ETL execution (`python src/main.py`) | - | Calls the live API and rewrites `data/` |
-| ETL Load | - | Writes to PostgreSQL |
-
-External-system and ETL automation will be handled separately by a future Jenkins job / Jenkinsfile. Until then, these selections run locally only.
+- All three offline test groups always run; a failing group marks its stage and the build as FAILURE.
+- During the offline stages `API_BASE_URL` points to an unreachable local address, so an accidental API request fails immediately instead of reaching the real API.
+- Real Integration / E2E runs only when the offline gate passed; otherwise it is reported as not run (the build is already FAILURE).
+- If the CI database configuration is missing (agent variables or Jenkins credential), the stages are skipped **explicitly**: the log names what is missing and the build is marked **UNSTABLE**, never a silent SUCCESS.
+- If the configuration exists but PostgreSQL is unreachable, Environment Validation fails and the build is **FAILURE**.
+- An Extract, Transform or Load failure stops the remaining stages (FAILURE). A failing integration or E2E test group marks its stage and the build as FAILURE.
+- JUnit results are published after every build, including failed ones; the final result is reported to GitHub Checks; the workspace is always deleted.
+- Builds time out after 20 minutes, never run concurrently per branch, and the last 30 builds are kept.
 
 ---
 
@@ -331,9 +399,16 @@ Local development uses a `.env` file excluded from Git through `.gitignore`. Cop
 
 All environment access is centralized in `src/config/settings.py`. Database settings are validated only when a connection is requested, and connection details are never included in `repr()`, logs, or error messages.
 
-The main `Jenkinsfile` (offline quality gate) does not use any database credentials. The CI workspace must not contain a `.env` file; the pipeline fails if one is found.
+The CI workspace must not contain a `.env` file; the pipeline fails if one is found.
 
-PostgreSQL credentials for CI remain stored in Jenkins Credentials, outside the repository. They are reserved for the future ETL / external-system job, where they should be bound only to the stage that needs them.
+CI database configuration (no values are stored in the repository):
+
+| What | Where in Jenkins | Provides |
+|---|---|---|
+| Credential `postgres-etl-api`, kind **Username with password** | Manage Jenkins -> Credentials | `DB_USER`, `DB_PASSWORD` |
+| Environment variables `DB_HOST`, `DB_PORT`, `DB_NAME` | Windows agent node -> Configure -> Node Properties -> Environment variables | connection target as seen from that agent (not secret) |
+
+The credential is bound with `withCredentials` only around the steps that connect to PostgreSQL (Environment Validation, Load, PostgreSQL Validation, E2E), so Jenkins masks both values in the log. The offline stages never receive it.
 
 ---
 
@@ -406,7 +481,8 @@ feature/jenkins-ci
      Jenkins
         |
         v
-  Ruff + Offline Tests
+ Ruff + Offline Tests
+ + Integration / E2E
         |
         v
    Quality Gate
@@ -431,8 +507,9 @@ The CI workflow is designed to:
 4. Create a fresh Python environment and install the pinned dependencies.
 5. Run Ruff.
 6. Execute the 92 offline tests (API Client, Unit, Offline Data Quality).
-7. Publish JUnit results.
-8. Mark the pipeline as successful only when all validation steps pass.
+7. Run the real Integration / E2E layer: live API tests, the real ETL into PostgreSQL, database validation and idempotency.
+8. Publish JUnit results and report the result to GitHub Checks.
+9. Mark the pipeline as successful only when all validation steps pass.
 
 The pipeline therefore acts as a **Quality Gate** before changes are considered ready for integration into the `main` branch.
 
@@ -474,9 +551,9 @@ In a remotely accessible Jenkins environment, this workflow could be evolved to 
 
 ## Scheduled Execution
 
-The main `Jenkinsfile` is a change-driven CI quality gate and does not execute the ETL process.
+The `Jenkinsfile` is change-driven: every build runs the real ETL once stage by stage and twice more inside the E2E suite, against the CI database.
 
-Scheduled ETL processing (extract, transform, load and external-system validation), simulating a batch ETL process commonly found in enterprise Data Warehouse environments, is planned as a separate Jenkins job and is not implemented yet.
+A time-based trigger for batch ETL processing (simulating a scheduled Data Warehouse load) is not configured.
 
 ---
 
@@ -492,9 +569,14 @@ Ruff
   v
 Offline Tests (API Client, Unit, Offline Data Quality)
   |
-  +---- All tests passed ----> Pipeline SUCCESS
+  v
+Real Integration / E2E (live API, ETL, PostgreSQL, idempotency)
   |
-  +---- Any failure ---------> Pipeline FAILURE
+  +---- All tests passed ------------------> Pipeline SUCCESS
+  |
+  +---- CI database config missing --------> Pipeline UNSTABLE (E2E explicitly skipped)
+  |
+  +---- Any failure -----------------------> Pipeline FAILURE
 ```
 
 A successfully validated CI execution reports:
@@ -503,8 +585,11 @@ A successfully validated CI execution reports:
 API Client:            11 passed
 Unit:                  43 passed
 Offline Data Quality:  38 passed
+Live DummyJSON:        21 passed
+PostgreSQL Validation: 28 passed
+E2E + Idempotency:     65 passed
 
-Offline quality gate passed.
+Offline quality gate and real Integration / E2E passed.
 ```
 
 ---
@@ -593,13 +678,14 @@ The current implementation supports:
 - [x] PostgreSQL loading
 - [x] Source-to-target reconciliation
 - [x] Automated Data Quality testing
-- [x] 141-test regression suite (87 data quality + 54 unit)
+- [x] 206-test regression suite (87 data quality + 54 unit + 65 E2E)
 - [x] Jenkins offline quality gate (Ruff + 92 offline tests)
+- [x] Real Integration / E2E layer in the same Jenkins pipeline (live API, ETL, PostgreSQL, idempotency)
+- [x] Versioned test snapshot separated from runtime ETL artifacts
 - [x] JUnit test reports in Jenkins
 - [x] Jenkinsfile stored in source control
 - [x] Windows Jenkins agent
-- [ ] Separate Jenkins job for ETL and external-system tests (live API, PostgreSQL)
-- [ ] Scheduled ETL execution (planned for the separate job)
+- [ ] Scheduled ETL execution
 - [x] Git repository
 - [x] GitHub integration
 - [x] Feature branch workflow
@@ -619,7 +705,7 @@ Planned improvements include:
 - CI result visibility directly in Pull Requests
 - Branch protection rules
 - Improved automated test reporting
-- Separate Jenkins job for ETL execution and external-system tests
+- Scheduled (time-based) ETL execution
 - Simulated DEV / QA / UAT promotion flow
 - Environment-specific configuration
 - Pipeline failure notifications

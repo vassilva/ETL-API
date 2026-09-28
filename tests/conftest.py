@@ -6,6 +6,9 @@ markers are derived here so they can never drift out of sync:
 
 - regression: every collected test
 - integration: every test marked live_api or database
+
+e2e tests write to data/ and PostgreSQL, so they are skipped unless the
+run explicitly opts in with --run-e2e.
 """
 
 import json
@@ -13,8 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from config.settings import PROCESSED_DATA_DIR, RAW_DATA_DIR
-from support.artifacts import read_artifact
+from support.artifacts import (
+    SNAPSHOT_PROCESSED_DIR,
+    SNAPSHOT_RAW_DIR,
+    read_artifact,
+)
 
 
 SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -23,14 +29,29 @@ SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures"
 EXTERNAL_DEPENDENCY_MARKERS = ("live_api", "database")
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-e2e",
+        action="store_true",
+        default=False,
+        help="run e2e tests (executes the real ETL: writes data/ and PostgreSQL)"
+    )
+
+
 # tryfirst: markers must exist before '-m' deselection runs
 @pytest.hookimpl(tryfirst=True)
-def pytest_collection_modifyitems(items):
+def pytest_collection_modifyitems(config, items):
+    run_e2e = config.getoption("--run-e2e")
+    skip_e2e = pytest.mark.skip(reason="writes data/ and PostgreSQL; use --run-e2e")
+
     for item in items:
         item.add_marker(pytest.mark.regression)
 
         if any(item.get_closest_marker(name) for name in EXTERNAL_DEPENDENCY_MARKERS):
             item.add_marker(pytest.mark.integration)
+
+        if item.get_closest_marker("e2e") and not run_e2e:
+            item.add_marker(skip_e2e)
 
 
 # Synthetic test data (tests/fixtures) — deterministic, no real data
@@ -47,33 +68,35 @@ def synthetic_payload():
     return load
 
 
-# Generated pipeline artifacts (read-only; produced by 'python src/main.py')
+# Versioned pipeline snapshot (tests/fixtures/snapshot) — a committed copy of
+# one real run, so offline artifact tests are reproducible. tests/load
+# overrides the processed_* fixtures with the runtime artifacts in data/.
 
 @pytest.fixture(scope="session")
 def raw_users():
-    return read_artifact(RAW_DATA_DIR / "users.json")["users"]
+    return read_artifact(SNAPSHOT_RAW_DIR / "users.json")["users"]
 
 
 @pytest.fixture(scope="session")
 def raw_products():
-    return read_artifact(RAW_DATA_DIR / "products.json")["products"]
+    return read_artifact(SNAPSHOT_RAW_DIR / "products.json")["products"]
 
 
 @pytest.fixture(scope="session")
 def raw_carts():
-    return read_artifact(RAW_DATA_DIR / "carts.json")["carts"]
+    return read_artifact(SNAPSHOT_RAW_DIR / "carts.json")["carts"]
 
 
 @pytest.fixture(scope="session")
 def processed_users():
-    return read_artifact(PROCESSED_DATA_DIR / "users.json")
+    return read_artifact(SNAPSHOT_PROCESSED_DIR / "users.json")
 
 
 @pytest.fixture(scope="session")
 def processed_products():
-    return read_artifact(PROCESSED_DATA_DIR / "products.json")
+    return read_artifact(SNAPSHOT_PROCESSED_DIR / "products.json")
 
 
 @pytest.fixture(scope="session")
 def processed_carts():
-    return read_artifact(PROCESSED_DATA_DIR / "carts.json")
+    return read_artifact(SNAPSHOT_PROCESSED_DIR / "carts.json")

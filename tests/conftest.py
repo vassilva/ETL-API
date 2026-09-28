@@ -16,8 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from config.settings import PROCESSED_DATA_DIR, RAW_DATA_DIR
-from support.artifacts import read_artifact
+from support.artifacts import (
+    SNAPSHOT_PROCESSED_DIR,
+    SNAPSHOT_RAW_DIR,
+    read_artifact,
+)
 
 
 SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -65,33 +68,35 @@ def synthetic_payload():
     return load
 
 
-# Generated pipeline artifacts (read-only; produced by 'python src/main.py')
+# Versioned pipeline snapshot (tests/fixtures/snapshot) — a committed copy of
+# one real run, so offline artifact tests are reproducible. tests/load
+# overrides the processed_* fixtures with the runtime artifacts in data/.
 
 @pytest.fixture(scope="session")
 def raw_users():
-    return read_artifact(RAW_DATA_DIR / "users.json")["users"]
+    return read_artifact(SNAPSHOT_RAW_DIR / "users.json")["users"]
 
 
 @pytest.fixture(scope="session")
 def raw_products():
-    return read_artifact(RAW_DATA_DIR / "products.json")["products"]
+    return read_artifact(SNAPSHOT_RAW_DIR / "products.json")["products"]
 
 
 @pytest.fixture(scope="session")
 def raw_carts():
-    return read_artifact(RAW_DATA_DIR / "carts.json")["carts"]
+    return read_artifact(SNAPSHOT_RAW_DIR / "carts.json")["carts"]
 
 
 @pytest.fixture(scope="session")
 def processed_users():
-    return read_artifact(PROCESSED_DATA_DIR / "users.json")
+    return read_artifact(SNAPSHOT_PROCESSED_DIR / "users.json")
 
 
 @pytest.fixture(scope="session")
 def processed_products():
-    return read_artifact(PROCESSED_DATA_DIR / "products.json")
+    return read_artifact(SNAPSHOT_PROCESSED_DIR / "products.json")
 
 
 @pytest.fixture(scope="session")
 def processed_carts():
-    return read_artifact(PROCESSED_DATA_DIR / "carts.json")
+    return read_artifact(SNAPSHOT_PROCESSED_DIR / "carts.json")

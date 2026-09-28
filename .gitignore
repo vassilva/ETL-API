@@ -41,6 +41,11 @@ __pycache__/
 .coverage.*
 htmlcov/
 
+# Runtime ETL artifacts (rewritten by every 'python src/main.py' run).
+# The versioned copy used by offline tests is tests/fixtures/snapshot/.
+data/raw/
+data/processed/
+
 # Test reports (may contain assertion output)
 reports/*
 !reports/.gitkeep

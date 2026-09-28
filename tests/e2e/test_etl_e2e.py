@@ -14,11 +14,13 @@ from decimal import Decimal
 
 import pytest
 
+from support.artifacts import SNAPSHOT_PROCESSED_DIR
 from support.assertions import assert_field_matches
 from support.db_helpers import index_by
 from transform.carts import transform_carts_data
 from transform.products import transform_products_data
 from transform.users import transform_users_data
+from utils.json_files import read_json
 
 from support.etl_e2e import (
     BUSINESS_RULES,
@@ -38,6 +40,8 @@ TRANSFORMS = {
     "products": transform_products_data,
     "carts": transform_carts_data,
 }
+
+ID_FIELDS = {"users": "user_id", "products": "product_id", "carts": "cart_id"}
 
 # Allowance for file-system timestamp resolution
 MTIME_TOLERANCE_SECONDS = 2
@@ -100,13 +104,52 @@ def test_raw_matches_live_api(first_run, source_data, resource):
 
 # Transform
 
+def mismatched_ids(actual, expected, resource):
+    """IDs of records that differ; only IDs ever reach the report."""
+    id_field = ID_FIELDS[resource]
+    expected_by_id = {record[id_field]: record for record in expected}
+    actual_by_id = {record[id_field]: record for record in actual}
+
+    return sorted(
+        record_id
+        for record_id in expected_by_id.keys() | actual_by_id.keys()
+        if actual_by_id.get(record_id) != expected_by_id.get(record_id)
+    )
+
+
 @pytest.mark.parametrize("resource", RESOURCES)
 def test_processed_is_transform_of_raw(first_run, resource):
     artifacts = first_run["artifacts"]
     raw_records = artifacts["raw"][resource][resource]
 
-    # Compared by equality only, so no record values reach the report
-    assert artifacts["processed"][resource] == TRANSFORMS[resource](raw_records)
+    # Compared into a variable so pytest never prints record values
+    differing = mismatched_ids(
+        artifacts["processed"][resource], TRANSFORMS[resource](raw_records), resource
+    )
+
+    assert differing == [], f"{resource}: processed records differ (ids: {differing})"
+
+
+@pytest.mark.parametrize("resource", RESOURCES)
+def test_processed_matches_versioned_snapshot(first_run, resource):
+    """
+    Business-data drift check. The runtime artifacts are git-ignored, so a
+    real change in the source data would otherwise go unnoticed: the loaded
+    data must equal the reviewed snapshot the offline tests run against.
+    Source metadata that is not transformed (e.g. meta.updatedAt) is not
+    part of the processed data and cannot trigger this.
+    """
+    snapshot = read_json(SNAPSHOT_PROCESSED_DIR / f"{resource}.json")
+
+    differing = mismatched_ids(
+        first_run["artifacts"]["processed"][resource], snapshot, resource
+    )
+
+    assert differing == [], (
+        f"{resource}: live business data differs from the versioned snapshot "
+        f"(ids: {differing}). Review the change, then refresh "
+        f"tests/fixtures/snapshot (see README)."
+    )
 
 
 # Load: first run

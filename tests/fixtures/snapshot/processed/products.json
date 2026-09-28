@@ -1,7 +1,7 @@
 [
     {
         "product_id": 1,
-        "product_name": "Essence Mascara Lash Princess",
+        "product_name": "Essence Mascara Lash Princess - RP",
         "category": "beauty",
         "price": 9.99,
         "discount_percentage": 10.48,
@@ -14,7 +14,7 @@
     },
     {
         "product_id": 2,
-        "product_name": "Eyeshadow Palette with Mirror",
+        "product_name": "Eyeshadow Palette with Mirror - RP",
         "category": "beauty",
         "price": 19.99,
         "discount_percentage": 18.19,
@@ -27,7 +27,7 @@
     },
     {
         "product_id": 3,
-        "product_name": "Powder Canister",
+        "product_name": "Powder Canister - RP",
         "category": "beauty",
         "price": 14.99,
         "discount_percentage": 9.84,
@@ -40,7 +40,7 @@
     },
     {
         "product_id": 4,
-        "product_name": "Red Lipstick",
+        "product_name": "Red Lipstick - RP",
         "category": "beauty",
         "price": 12.99,
         "discount_percentage": 12.16,
@@ -53,7 +53,7 @@
     },
     {
         "product_id": 5,
-        "product_name": "Red Nail Polish",
+        "product_name": "Red Nail Polish - RP",
         "category": "beauty",
         "price": 8.99,
         "discount_percentage": 11.44,
@@ -66,7 +66,7 @@
     },
     {
         "product_id": 6,
-        "product_name": "Calvin Klein CK One",
+        "product_name": "Calvin Klein CK One - RP",
         "category": "fragrances",
         "price": 49.99,
         "discount_percentage": 1.89,
@@ -79,7 +79,7 @@
     },
     {
         "product_id": 7,
-        "product_name": "Chanel Coco Noir Eau De",
+        "product_name": "Chanel Coco Noir Eau De - RP",
         "category": "fragrances",
         "price": 129.99,
         "discount_percentage": 16.51,
@@ -92,7 +92,7 @@
     },
     {
         "product_id": 8,
-        "product_name": "Dior J'adore",
+        "product_name": "Dior J'adore - RP",
         "category": "fragrances",
         "price": 89.99,
         "discount_percentage": 14.72,
@@ -105,7 +105,7 @@
     },
     {
         "product_id": 9,
-        "product_name": "Dolce Shine Eau de",
+        "product_name": "Dolce Shine Eau de - RP",
         "category": "fragrances",
         "price": 69.99,
         "discount_percentage": 0.62,
@@ -118,7 +118,7 @@
     },
     {
         "product_id": 10,
-        "product_name": "Gucci Bloom Eau de",
+        "product_name": "Gucci Bloom Eau de - RP",
         "category": "fragrances",
         "price": 79.99,
         "discount_percentage": 14.39,
@@ -131,7 +131,7 @@
     },
     {
         "product_id": 11,
-        "product_name": "Annibale Colombo Bed",
+        "product_name": "Annibale Colombo Bed - RP",
         "category": "furniture",
         "price": 1899.99,
         "discount_percentage": 8.57,
@@ -144,7 +144,7 @@
     },
     {
         "product_id": 12,
-        "product_name": "Annibale Colombo Sofa",
+        "product_name": "Annibale Colombo Sofa - RP",
         "category": "furniture",
         "price": 2499.99,
         "discount_percentage": 14.4,
@@ -157,7 +157,7 @@
     },
     {
         "product_id": 13,
-        "product_name": "Bedside Table African Cherry",
+        "product_name": "Bedside Table African Cherry - RP",
         "category": "furniture",
         "price": 299.99,
         "discount_percentage": 19.09,
@@ -170,7 +170,7 @@
     },
     {
         "product_id": 14,
-        "product_name": "Knoll Saarinen Executive Conference Chair",
+        "product_name": "Knoll Saarinen Executive Conference Chair - RP",
         "category": "furniture",
         "price": 499.99,
         "discount_percentage": 2.01,
@@ -183,7 +183,7 @@
     },
     {
         "product_id": 15,
-        "product_name": "Wooden Bathroom Sink With Mirror",
+        "product_name": "Wooden Bathroom Sink With Mirror - RP",
         "category": "furniture",
         "price": 799.99,
         "discount_percentage": 8.8,
@@ -196,7 +196,7 @@
     },
     {
         "product_id": 16,
-        "product_name": "Apple",
+        "product_name": "Apple - RP",
         "category": "groceries",
         "price": 1.99,
         "discount_percentage": 12.62,
@@ -209,7 +209,7 @@
     },
     {
         "product_id": 17,
-        "product_name": "Beef Steak",
+        "product_name": "Beef Steak - RP",
         "category": "groceries",
         "price": 12.99,
         "discount_percentage": 9.61,
@@ -222,7 +222,7 @@
     },
     {
         "product_id": 18,
-        "product_name": "Cat Food",
+        "product_name": "Cat Food - RP",
         "category": "groceries",
         "price": 8.99,
         "discount_percentage": 9.58,
@@ -235,7 +235,7 @@
     },
     {
         "product_id": 19,
-        "product_name": "Chicken Meat",
+        "product_name": "Chicken Meat - RP",
         "category": "groceries",
         "price": 9.99,
         "discount_percentage": 13.7,
@@ -248,7 +248,7 @@
     },
     {
         "product_id": 20,
-        "product_name": "Cooking Oil",
+        "product_name": "Cooking Oil - RP",
         "category": "groceries",
         "price": 4.99,
         "discount_percentage": 9.33,
@@ -261,7 +261,7 @@
     },
     {
         "product_id": 21,
-        "product_name": "Cucumber",
+        "product_name": "Cucumber - RP",
         "category": "groceries",
         "price": 1.49,
         "discount_percentage": 0.16,
@@ -274,7 +274,7 @@
     },
     {
         "product_id": 22,
-        "product_name": "Dog Food",
+        "product_name": "Dog Food - RP",
         "category": "groceries",
         "price": 10.99,
         "discount_percentage": 10.27,
@@ -287,7 +287,7 @@
     },
     {
         "product_id": 23,
-        "product_name": "Eggs",
+        "product_name": "Eggs - RP",
         "category": "groceries",
         "price": 2.99,
         "discount_percentage": 11.05,
@@ -300,7 +300,7 @@
     },
     {
         "product_id": 24,
-        "product_name": "Fish Steak",
+        "product_name": "Fish Steak - RP",
         "category": "groceries",
         "price": 14.99,
         "discount_percentage": 4.23,
@@ -313,7 +313,7 @@
     },
     {
         "product_id": 25,
-        "product_name": "Green Bell Pepper",
+        "product_name": "Green Bell Pepper - RP",
         "category": "groceries",
         "price": 1.29,
         "discount_percentage": 0.16,
@@ -326,7 +326,7 @@
     },
     {
         "product_id": 26,
-        "product_name": "Green Chili Pepper",
+        "product_name": "Green Chili Pepper - RP",
         "category": "groceries",
         "price": 0.99,
         "discount_percentage": 1,
@@ -339,7 +339,7 @@
     },
     {
         "product_id": 27,
-        "product_name": "Honey Jar",
+        "product_name": "Honey Jar - RP",
         "category": "groceries",
         "price": 6.99,
         "discount_percentage": 14.4,
@@ -352,7 +352,7 @@
     },
     {
         "product_id": 28,
-        "product_name": "Ice Cream",
+        "product_name": "Ice Cream - RP",
         "category": "groceries",
         "price": 5.49,
         "discount_percentage": 8.69,
@@ -365,7 +365,7 @@
     },
     {
         "product_id": 29,
-        "product_name": "Juice",
+        "product_name": "Juice - RP",
         "category": "groceries",
         "price": 3.99,
         "discount_percentage": 12.06,
@@ -378,7 +378,7 @@
     },
     {
         "product_id": 30,
-        "product_name": "Kiwi",
+        "product_name": "Kiwi - RP",
         "category": "groceries",
         "price": 2.49,
         "discount_percentage": 15.22,
@@ -391,7 +391,7 @@
     },
     {
         "product_id": 31,
-        "product_name": "Lemon",
+        "product_name": "Lemon - RP",
         "category": "groceries",
         "price": 0.79,
         "discount_percentage": 9.7,
@@ -404,7 +404,7 @@
     },
     {
         "product_id": 32,
-        "product_name": "Milk",
+        "product_name": "Milk - RP",
         "category": "groceries",
         "price": 3.49,
         "discount_percentage": 13.74,
@@ -417,7 +417,7 @@
     },
     {
         "product_id": 33,
-        "product_name": "Mulberry",
+        "product_name": "Mulberry - RP",
         "category": "groceries",
         "price": 4.99,
         "discount_percentage": 12.87,
@@ -430,7 +430,7 @@
     },
     {
         "product_id": 34,
-        "product_name": "Nescafe Coffee",
+        "product_name": "Nescafe Coffee - RP",
         "category": "groceries",
         "price": 7.99,
         "discount_percentage": 1.59,
@@ -443,7 +443,7 @@
     },
     {
         "product_id": 35,
-        "product_name": "Potatoes",
+        "product_name": "Potatoes - RP",
         "category": "groceries",
         "price": 2.29,
         "discount_percentage": 5.38,
@@ -456,7 +456,7 @@
     },
     {
         "product_id": 36,
-        "product_name": "Protein Powder",
+        "product_name": "Protein Powder - RP",
         "category": "groceries",
         "price": 19.99,
         "discount_percentage": 7.59,
@@ -469,7 +469,7 @@
     },
     {
         "product_id": 37,
-        "product_name": "Red Onions",
+        "product_name": "Red Onions - RP",
         "category": "groceries",
         "price": 1.99,
         "discount_percentage": 9.9,
@@ -482,7 +482,7 @@
     },
     {
         "product_id": 38,
-        "product_name": "Rice",
+        "product_name": "Rice - RP",
         "category": "groceries",
         "price": 5.99,
         "discount_percentage": 9.29,
@@ -495,7 +495,7 @@
     },
     {
         "product_id": 39,
-        "product_name": "Soft Drinks",
+        "product_name": "Soft Drinks - RP",
         "category": "groceries",
         "price": 1.99,
         "discount_percentage": 17.48,
@@ -508,7 +508,7 @@
     },
     {
         "product_id": 40,
-        "product_name": "Strawberry",
+        "product_name": "Strawberry - RP",
         "category": "groceries",
         "price": 3.99,
         "discount_percentage": 1.12,
@@ -521,7 +521,7 @@
     },
     {
         "product_id": 41,
-        "product_name": "Tissue Paper Box",
+        "product_name": "Tissue Paper Box - RP",
         "category": "groceries",
         "price": 2.49,
         "discount_percentage": 13.28,
@@ -534,7 +534,7 @@
     },
     {
         "product_id": 42,
-        "product_name": "Water",
+        "product_name": "Water - RP",
         "category": "groceries",
         "price": 0.99,
         "discount_percentage": 14.92,
@@ -547,7 +547,7 @@
     },
     {
         "product_id": 43,
-        "product_name": "Decoration Swing",
+        "product_name": "Decoration Swing - RP",
         "category": "home-decoration",
         "price": 59.99,
         "discount_percentage": 10.41,
@@ -560,7 +560,7 @@
     },
     {
         "product_id": 44,
-        "product_name": "Family Tree Photo Frame",
+        "product_name": "Family Tree Photo Frame - RP",
         "category": "home-decoration",
         "price": 29.99,
         "discount_percentage": 14.87,
@@ -573,7 +573,7 @@
     },
     {
         "product_id": 45,
-        "product_name": "House Showpiece Plant",
+        "product_name": "House Showpiece Plant - RP",
         "category": "home-decoration",
         "price": 39.99,
         "discount_percentage": 7.46,
@@ -586,7 +586,7 @@
     },
     {
         "product_id": 46,
-        "product_name": "Plant Pot",
+        "product_name": "Plant Pot - RP",
         "category": "home-decoration",
         "price": 14.99,
         "discount_percentage": 6.84,
@@ -599,7 +599,7 @@
     },
     {
         "product_id": 47,
-        "product_name": "Table Lamp",
+        "product_name": "Table Lamp - RP",
         "category": "home-decoration",
         "price": 49.99,
         "discount_percentage": 7.09,
@@ -612,7 +612,7 @@
     },
     {
         "product_id": 48,
-        "product_name": "Bamboo Spatula",
+        "product_name": "Bamboo Spatula - RP",
         "category": "kitchen-accessories",
         "price": 7.99,
         "discount_percentage": 2.84,
@@ -625,7 +625,7 @@
     },
     {
         "product_id": 49,
-        "product_name": "Black Aluminium Cup",
+        "product_name": "Black Aluminium Cup - RP",
         "category": "kitchen-accessories",
         "price": 5.99,
         "discount_percentage": 15.65,
@@ -638,7 +638,7 @@
     },
     {
         "product_id": 50,
-        "product_name": "Black Whisk",
+        "product_name": "Black Whisk - RP",
         "category": "kitchen-accessories",
         "price": 9.99,
         "discount_percentage": 10.24,
@@ -651,7 +651,7 @@
     },
     {
         "product_id": 51,
-        "product_name": "Boxed Blender",
+        "product_name": "Boxed Blender - RP",
         "category": "kitchen-accessories",
         "price": 39.99,
         "discount_percentage": 7.26,
@@ -664,7 +664,7 @@
     },
     {
         "product_id": 52,
-        "product_name": "Carbon Steel Wok",
+        "product_name": "Carbon Steel Wok - RP",
         "category": "kitchen-accessories",
         "price": 29.99,
         "discount_percentage": 6.53,
@@ -677,7 +677,7 @@
     },
     {
         "product_id": 53,
-        "product_name": "Chopping Board",
+        "product_name": "Chopping Board - RP",
         "category": "kitchen-accessories",
         "price": 12.99,
         "discount_percentage": 8.03,
@@ -690,7 +690,7 @@
     },
     {
         "product_id": 54,
-        "product_name": "Citrus Squeezer Yellow",
+        "product_name": "Citrus Squeezer Yellow - RP",
         "category": "kitchen-accessories",
         "price": 8.99,
         "discount_percentage": 12.1,
@@ -703,7 +703,7 @@
     },
     {
         "product_id": 55,
-        "product_name": "Egg Slicer",
+        "product_name": "Egg Slicer - RP",
         "category": "kitchen-accessories",
         "price": 6.99,
         "discount_percentage": 14.76,
@@ -716,7 +716,7 @@
     },
     {
         "product_id": 56,
-        "product_name": "Electric Stove",
+        "product_name": "Electric Stove - RP",
         "category": "kitchen-accessories",
         "price": 49.99,
         "discount_percentage": 14.04,
@@ -729,7 +729,7 @@
     },
     {
         "product_id": 57,
-        "product_name": "Fine Mesh Strainer",
+        "product_name": "Fine Mesh Strainer - RP",
         "category": "kitchen-accessories",
         "price": 9.99,
         "discount_percentage": 3.5,
@@ -742,7 +742,7 @@
     },
     {
         "product_id": 58,
-        "product_name": "Fork",
+        "product_name": "Fork - RP",
         "category": "kitchen-accessories",
         "price": 3.99,
         "discount_percentage": 8.07,
@@ -755,7 +755,7 @@
     },
     {
         "product_id": 59,
-        "product_name": "Glass",
+        "product_name": "Glass - RP",
         "category": "kitchen-accessories",
         "price": 4.99,
         "discount_percentage": 7.92,
@@ -768,7 +768,7 @@
     },
     {
         "product_id": 60,
-        "product_name": "Grater Black",
+        "product_name": "Grater Black - RP",
         "category": "kitchen-accessories",
         "price": 10.99,
         "discount_percentage": 3.56,
@@ -781,7 +781,7 @@
     },
     {
         "product_id": 61,
-        "product_name": "Hand Blender",
+        "product_name": "Hand Blender - RP",
         "category": "kitchen-accessories",
         "price": 34.99,
         "discount_percentage": 17.02,
@@ -794,7 +794,7 @@
     },
     {
         "product_id": 62,
-        "product_name": "Ice Cube Tray",
+        "product_name": "Ice Cube Tray - RP",
         "category": "kitchen-accessories",
         "price": 5.99,
         "discount_percentage": 0.63,
@@ -807,7 +807,7 @@
     },
     {
         "product_id": 63,
-        "product_name": "Kitchen Sieve",
+        "product_name": "Kitchen Sieve - RP",
         "category": "kitchen-accessories",
         "price": 7.99,
         "discount_percentage": 18.91,
@@ -820,7 +820,7 @@
     },
     {
         "product_id": 64,
-        "product_name": "Knife",
+        "product_name": "Knife - RP",
         "category": "kitchen-accessories",
         "price": 14.99,
         "discount_percentage": 18.86,
@@ -833,7 +833,7 @@
     },
     {
         "product_id": 65,
-        "product_name": "Lunch Box",
+        "product_name": "Lunch Box - RP",
         "category": "kitchen-accessories",
         "price": 12.99,
         "discount_percentage": 10.34,
@@ -846,7 +846,7 @@
     },
     {
         "product_id": 66,
-        "product_name": "Microwave Oven",
+        "product_name": "Microwave Oven - RP",
         "category": "kitchen-accessories",
         "price": 89.99,
         "discount_percentage": 12.13,
@@ -859,7 +859,7 @@
     },
     {
         "product_id": 67,
-        "product_name": "Mug Tree Stand",
+        "product_name": "Mug Tree Stand - RP",
         "category": "kitchen-accessories",
         "price": 15.99,
         "discount_percentage": 9.25,
@@ -872,7 +872,7 @@
     },
     {
         "product_id": 68,
-        "product_name": "Pan",
+        "product_name": "Pan - RP",
         "category": "kitchen-accessories",
         "price": 24.99,
         "discount_percentage": 3,
@@ -885,7 +885,7 @@
     },
     {
         "product_id": 69,
-        "product_name": "Plate",
+        "product_name": "Plate - RP",
         "category": "kitchen-accessories",
         "price": 3.99,
         "discount_percentage": 7.31,
@@ -898,7 +898,7 @@
     },
     {
         "product_id": 70,
-        "product_name": "Red Tongs",
+        "product_name": "Red Tongs - RP",
         "category": "kitchen-accessories",
         "price": 6.99,
         "discount_percentage": 14.52,
@@ -911,7 +911,7 @@
     },
     {
         "product_id": 71,
-        "product_name": "Silver Pot With Glass Cap",
+        "product_name": "Silver Pot With Glass Cap - RP",
         "category": "kitchen-accessories",
         "price": 39.99,
         "discount_percentage": 5.7,
@@ -924,7 +924,7 @@
     },
     {
         "product_id": 72,
-        "product_name": "Slotted Turner",
+        "product_name": "Slotted Turner - RP",
         "category": "kitchen-accessories",
         "price": 8.99,
         "discount_percentage": 13.35,
@@ -937,7 +937,7 @@
     },
     {
         "product_id": 73,
-        "product_name": "Spice Rack",
+        "product_name": "Spice Rack - RP",
         "category": "kitchen-accessories",
         "price": 19.99,
         "discount_percentage": 12.09,
@@ -950,7 +950,7 @@
     },
     {
         "product_id": 74,
-        "product_name": "Spoon",
+        "product_name": "Spoon - RP",
         "category": "kitchen-accessories",
         "price": 4.99,
         "discount_percentage": 1.53,
@@ -963,7 +963,7 @@
     },
     {
         "product_id": 75,
-        "product_name": "Tray",
+        "product_name": "Tray - RP",
         "category": "kitchen-accessories",
         "price": 16.99,
         "discount_percentage": 7.48,
@@ -976,7 +976,7 @@
     },
     {
         "product_id": 76,
-        "product_name": "Wooden Rolling Pin",
+        "product_name": "Wooden Rolling Pin - RP",
         "category": "kitchen-accessories",
         "price": 11.99,
         "discount_percentage": 9.75,
@@ -989,7 +989,7 @@
     },
     {
         "product_id": 77,
-        "product_name": "Yellow Peeler",
+        "product_name": "Yellow Peeler - RP",
         "category": "kitchen-accessories",
         "price": 5.99,
         "discount_percentage": 12.48,
@@ -1002,7 +1002,7 @@
     },
     {
         "product_id": 78,
-        "product_name": "Apple MacBook Pro 14 Inch Space Grey",
+        "product_name": "Apple MacBook Pro 14 Inch Space Grey - RP",
         "category": "laptops",
         "price": 1999.99,
         "discount_percentage": 4.69,
@@ -1015,7 +1015,7 @@
     },
     {
         "product_id": 79,
-        "product_name": "Asus Zenbook Pro Dual Screen Laptop",
+        "product_name": "Asus Zenbook Pro Dual Screen Laptop - RP",
         "category": "laptops",
         "price": 1799.99,
         "discount_percentage": 11.14,
@@ -1028,7 +1028,7 @@
     },
     {
         "product_id": 80,
-        "product_name": "Huawei Matebook X Pro",
+        "product_name": "Huawei Matebook X Pro - RP",
         "category": "laptops",
         "price": 1399.99,
         "discount_percentage": 9.38,
@@ -1041,7 +1041,7 @@
     },
     {
         "product_id": 81,
-        "product_name": "Lenovo Yoga 920",
+        "product_name": "Lenovo Yoga 920 - RP",
         "category": "laptops",
         "price": 1099.99,
         "discount_percentage": 6.55,
@@ -1054,7 +1054,7 @@
     },
     {
         "product_id": 82,
-        "product_name": "New DELL XPS 13 9300 Laptop",
+        "product_name": "New DELL XPS 13 9300 Laptop - RP",
         "category": "laptops",
         "price": 1499.99,
         "discount_percentage": 11.89,
@@ -1067,7 +1067,7 @@
     },
     {
         "product_id": 83,
-        "product_name": "Blue & Black Check Shirt",
+        "product_name": "Blue & Black Check Shirt - RP",
         "category": "mens-shirts",
         "price": 29.99,
         "discount_percentage": 15.35,
@@ -1080,7 +1080,7 @@
     },
     {
         "product_id": 84,
-        "product_name": "Gigabyte Aorus Men Tshirt",
+        "product_name": "Gigabyte Aorus Men Tshirt - RP",
         "category": "mens-shirts",
         "price": 24.99,
         "discount_percentage": 0.94,
@@ -1093,7 +1093,7 @@
     },
     {
         "product_id": 85,
-        "product_name": "Man Plaid Shirt",
+        "product_name": "Man Plaid Shirt - RP",
         "category": "mens-shirts",
         "price": 34.99,
         "discount_percentage": 19.5,
@@ -1106,7 +1106,7 @@
     },
     {
         "product_id": 86,
-        "product_name": "Man Short Sleeve Shirt",
+        "product_name": "Man Short Sleeve Shirt - RP",
         "category": "mens-shirts",
         "price": 19.99,
         "discount_percentage": 6.83,
@@ -1119,7 +1119,7 @@
     },
     {
         "product_id": 87,
-        "product_name": "Men Check Shirt",
+        "product_name": "Men Check Shirt - RP",
         "category": "mens-shirts",
         "price": 27.99,
         "discount_percentage": 11.38,
@@ -1132,7 +1132,7 @@
     },
     {
         "product_id": 88,
-        "product_name": "Nike Air Jordan 1 Red And Black",
+        "product_name": "Nike Air Jordan 1 Red And Black - RP",
         "category": "mens-shoes",
         "price": 149.99,
         "discount_percentage": 4.12,
@@ -1145,7 +1145,7 @@
     },
     {
         "product_id": 89,
-        "product_name": "Nike Baseball Cleats",
+        "product_name": "Nike Baseball Cleats - RP",
         "category": "mens-shoes",
         "price": 79.99,
         "discount_percentage": 18.04,
@@ -1158,7 +1158,7 @@
     },
     {
         "product_id": 90,
-        "product_name": "Puma Future Rider Trainers",
+        "product_name": "Puma Future Rider Trainers - RP",
         "category": "mens-shoes",
         "price": 89.99,
         "discount_percentage": 4.2,
@@ -1171,7 +1171,7 @@
     },
     {
         "product_id": 91,
-        "product_name": "Sports Sneakers Off White & Red",
+        "product_name": "Sports Sneakers Off White & Red - RP",
         "category": "mens-shoes",
         "price": 119.99,
         "discount_percentage": 4.97,
@@ -1184,7 +1184,7 @@
     },
     {
         "product_id": 92,
-        "product_name": "Sports Sneakers Off White Red",
+        "product_name": "Sports Sneakers Off White Red - RP",
         "category": "mens-shoes",
         "price": 109.99,
         "discount_percentage": 0.04,
@@ -1197,7 +1197,7 @@
     },
     {
         "product_id": 93,
-        "product_name": "Brown Leather Belt Watch",
+        "product_name": "Brown Leather Belt Watch - RP",
         "category": "mens-watches",
         "price": 89.99,
         "discount_percentage": 5.99,
@@ -1210,7 +1210,7 @@
     },
     {
         "product_id": 94,
-        "product_name": "Longines Master Collection",
+        "product_name": "Longines Master Collection - RP",
         "category": "mens-watches",
         "price": 1499.99,
         "discount_percentage": 17.24,
@@ -1223,7 +1223,7 @@
     },
     {
         "product_id": 95,
-        "product_name": "Rolex Cellini Date Black Dial",
+        "product_name": "Rolex Cellini Date Black Dial - RP",
         "category": "mens-watches",
         "price": 8999.99,
         "discount_percentage": 8.88,
@@ -1236,7 +1236,7 @@
     },
     {
         "product_id": 96,
-        "product_name": "Rolex Cellini Moonphase",
+        "product_name": "Rolex Cellini Moonphase - RP",
         "category": "mens-watches",
         "price": 12999.99,
         "discount_percentage": 17.52,
@@ -1249,7 +1249,7 @@
     },
     {
         "product_id": 97,
-        "product_name": "Rolex Datejust",
+        "product_name": "Rolex Datejust - RP",
         "category": "mens-watches",
         "price": 10999.99,
         "discount_percentage": 3.73,
@@ -1262,7 +1262,7 @@
     },
     {
         "product_id": 98,
-        "product_name": "Rolex Submariner Watch",
+        "product_name": "Rolex Submariner Watch - RP",
         "category": "mens-watches",
         "price": 13999.99,
         "discount_percentage": 5.05,
@@ -1275,7 +1275,7 @@
     },
     {
         "product_id": 99,
-        "product_name": "Amazon Echo Plus",
+        "product_name": "Amazon Echo Plus - RP",
         "category": "mobile-accessories",
         "price": 99.99,
         "discount_percentage": 12.07,
@@ -1288,7 +1288,7 @@
     },
     {
         "product_id": 100,
-        "product_name": "Apple Airpods",
+        "product_name": "Apple Airpods - RP",
         "category": "mobile-accessories",
         "price": 129.99,
         "discount_percentage": 15.54,
@@ -1301,7 +1301,7 @@
     },
     {
         "product_id": 101,
-        "product_name": "Apple AirPods Max Silver",
+        "product_name": "Apple AirPods Max Silver - RP",
         "category": "mobile-accessories",
         "price": 549.99,
         "discount_percentage": 13.67,
@@ -1314,7 +1314,7 @@
     },
     {
         "product_id": 102,
-        "product_name": "Apple Airpower Wireless Charger",
+        "product_name": "Apple Airpower Wireless Charger - RP",
         "category": "mobile-accessories",
         "price": 79.99,
         "discount_percentage": 4.48,
@@ -1327,7 +1327,7 @@
     },
     {
         "product_id": 103,
-        "product_name": "Apple HomePod Mini Cosmic Grey",
+        "product_name": "Apple HomePod Mini Cosmic Grey - RP",
         "category": "mobile-accessories",
         "price": 99.99,
         "discount_percentage": 18.1,
@@ -1340,7 +1340,7 @@
     },
     {
         "product_id": 104,
-        "product_name": "Apple iPhone Charger",
+        "product_name": "Apple iPhone Charger - RP",
         "category": "mobile-accessories",
         "price": 19.99,
         "discount_percentage": 18.52,
@@ -1353,7 +1353,7 @@
     },
     {
         "product_id": 105,
-        "product_name": "Apple MagSafe Battery Pack",
+        "product_name": "Apple MagSafe Battery Pack - RP",
         "category": "mobile-accessories",
         "price": 99.99,
         "discount_percentage": 17.17,
@@ -1366,7 +1366,7 @@
     },
     {
         "product_id": 106,
-        "product_name": "Apple Watch Series 4 Gold",
+        "product_name": "Apple Watch Series 4 Gold - RP",
         "category": "mobile-accessories",
         "price": 349.99,
         "discount_percentage": 12.02,
@@ -1379,7 +1379,7 @@
     },
     {
         "product_id": 107,
-        "product_name": "Beats Flex Wireless Earphones",
+        "product_name": "Beats Flex Wireless Earphones - RP",
         "category": "mobile-accessories",
         "price": 49.99,
         "discount_percentage": 5.73,
@@ -1392,7 +1392,7 @@
     },
     {
         "product_id": 108,
-        "product_name": "iPhone 12 Silicone Case with MagSafe Plum",
+        "product_name": "iPhone 12 Silicone Case with MagSafe Plum - RP",
         "category": "mobile-accessories",
         "price": 29.99,
         "discount_percentage": 13.85,
@@ -1405,7 +1405,7 @@
     },
     {
         "product_id": 109,
-        "product_name": "Monopod",
+        "product_name": "Monopod - RP",
         "category": "mobile-accessories",
         "price": 19.99,
         "discount_percentage": 8.58,
@@ -1418,7 +1418,7 @@
     },
     {
         "product_id": 110,
-        "product_name": "Selfie Lamp with iPhone",
+        "product_name": "Selfie Lamp with iPhone - RP",
         "category": "mobile-accessories",
         "price": 14.99,
         "discount_percentage": 19.4,
@@ -1431,7 +1431,7 @@
     },
     {
         "product_id": 111,
-        "product_name": "Selfie Stick Monopod",
+        "product_name": "Selfie Stick Monopod - RP",
         "category": "mobile-accessories",
         "price": 12.99,
         "discount_percentage": 19.12,
@@ -1444,7 +1444,7 @@
     },
     {
         "product_id": 112,
-        "product_name": "TV Studio Camera Pedestal",
+        "product_name": "TV Studio Camera Pedestal - RP",
         "category": "mobile-accessories",
         "price": 499.99,
         "discount_percentage": 8.31,
@@ -1457,7 +1457,7 @@
     },
     {
         "product_id": 113,
-        "product_name": "Generic Motorcycle",
+        "product_name": "Generic Motorcycle - RP",
         "category": "motorcycle",
         "price": 3999.99,
         "discount_percentage": 12.1,
@@ -1470,7 +1470,7 @@
     },
     {
         "product_id": 114,
-        "product_name": "Kawasaki Z800",
+        "product_name": "Kawasaki Z800 - RP",
         "category": "motorcycle",
         "price": 8999.99,
         "discount_percentage": 9.77,
@@ -1483,7 +1483,7 @@
     },
     {
         "product_id": 115,
-        "product_name": "MotoGP CI.H1",
+        "product_name": "MotoGP CI.H1 - RP",
         "category": "motorcycle",
         "price": 14999.99,
         "discount_percentage": 6.92,
@@ -1496,7 +1496,7 @@
     },
     {
         "product_id": 116,
-        "product_name": "Scooter Motorcycle",
+        "product_name": "Scooter Motorcycle - RP",
         "category": "motorcycle",
         "price": 2999.99,
         "discount_percentage": 6.27,
@@ -1509,7 +1509,7 @@
     },
     {
         "product_id": 117,
-        "product_name": "Sportbike Motorcycle",
+        "product_name": "Sportbike Motorcycle - RP",
         "category": "motorcycle",
         "price": 7499.99,
         "discount_percentage": 11.58,
@@ -1522,7 +1522,7 @@
     },
     {
         "product_id": 118,
-        "product_name": "Attitude Super Leaves Hand Soap",
+        "product_name": "Attitude Super Leaves Hand Soap - RP",
         "category": "skin-care",
         "price": 8.99,
         "discount_percentage": 18.49,
@@ -1535,7 +1535,7 @@
     },
     {
         "product_id": 119,
-        "product_name": "Olay Ultra Moisture Shea Butter Body Wash",
+        "product_name": "Olay Ultra Moisture Shea Butter Body Wash - RP",
         "category": "skin-care",
         "price": 12.99,
         "discount_percentage": 16.39,
@@ -1548,7 +1548,7 @@
     },
     {
         "product_id": 120,
-        "product_name": "Vaseline Men Body and Face Lotion",
+        "product_name": "Vaseline Men Body and Face Lotion - RP",
         "category": "skin-care",
         "price": 9.99,
         "discount_percentage": 13.39,
@@ -1561,7 +1561,7 @@
     },
     {
         "product_id": 121,
-        "product_name": "iPhone 5s",
+        "product_name": "iPhone 5s - RP",
         "category": "smartphones",
         "price": 199.99,
         "discount_percentage": 12.91,
@@ -1574,7 +1574,7 @@
     },
     {
         "product_id": 122,
-        "product_name": "iPhone 6",
+        "product_name": "iPhone 6 - RP",
         "category": "smartphones",
         "price": 299.99,
         "discount_percentage": 6.69,
@@ -1587,7 +1587,7 @@
     },
     {
         "product_id": 123,
-        "product_name": "iPhone 13 Pro",
+        "product_name": "iPhone 13 Pro - RP",
         "category": "smartphones",
         "price": 1099.99,
         "discount_percentage": 9.37,
@@ -1600,7 +1600,7 @@
     },
     {
         "product_id": 124,
-        "product_name": "iPhone X",
+        "product_name": "iPhone X - RP",
         "category": "smartphones",
         "price": 899.99,
         "discount_percentage": 19.59,
@@ -1613,7 +1613,7 @@
     },
     {
         "product_id": 125,
-        "product_name": "Oppo A57",
+        "product_name": "Oppo A57 - RP",
         "category": "smartphones",
         "price": 249.99,
         "discount_percentage": 2.43,
@@ -1626,7 +1626,7 @@
     },
     {
         "product_id": 126,
-        "product_name": "Oppo F19 Pro Plus",
+        "product_name": "Oppo F19 Pro Plus - RP",
         "category": "smartphones",
         "price": 399.99,
         "discount_percentage": 18.64,
@@ -1639,7 +1639,7 @@
     },
     {
         "product_id": 127,
-        "product_name": "Oppo K1",
+        "product_name": "Oppo K1 - RP",
         "category": "smartphones",
         "price": 299.99,
         "discount_percentage": 18.29,
@@ -1652,7 +1652,7 @@
     },
     {
         "product_id": 128,
-        "product_name": "Realme C35",
+        "product_name": "Realme C35 - RP",
         "category": "smartphones",
         "price": 149.99,
         "discount_percentage": 15.3,
@@ -1665,7 +1665,7 @@
     },
     {
         "product_id": 129,
-        "product_name": "Realme X",
+        "product_name": "Realme X - RP",
         "category": "smartphones",
         "price": 299.99,
         "discount_percentage": 6.95,
@@ -1678,7 +1678,7 @@
     },
     {
         "product_id": 130,
-        "product_name": "Realme XT",
+        "product_name": "Realme XT - RP",
         "category": "smartphones",
         "price": 349.99,
         "discount_percentage": 11.51,
@@ -1691,7 +1691,7 @@
     },
     {
         "product_id": 131,
-        "product_name": "Samsung Galaxy S7",
+        "product_name": "Samsung Galaxy S7 - RP",
         "category": "smartphones",
         "price": 299.99,
         "discount_percentage": 19.55,
@@ -1704,7 +1704,7 @@
     },
     {
         "product_id": 132,
-        "product_name": "Samsung Galaxy S8",
+        "product_name": "Samsung Galaxy S8 - RP",
         "category": "smartphones",
         "price": 499.99,
         "discount_percentage": 19.45,
@@ -1717,7 +1717,7 @@
     },
     {
         "product_id": 133,
-        "product_name": "Samsung Galaxy S10",
+        "product_name": "Samsung Galaxy S10 - RP",
         "category": "smartphones",
         "price": 699.99,
         "discount_percentage": 5.59,
@@ -1730,7 +1730,7 @@
     },
     {
         "product_id": 134,
-        "product_name": "Vivo S1",
+        "product_name": "Vivo S1 - RP",
         "category": "smartphones",
         "price": 249.99,
         "discount_percentage": 10.17,
@@ -1743,7 +1743,7 @@
     },
     {
         "product_id": 135,
-        "product_name": "Vivo V9",
+        "product_name": "Vivo V9 - RP",
         "category": "smartphones",
         "price": 299.99,
         "discount_percentage": 17.67,
@@ -1756,7 +1756,7 @@
     },
     {
         "product_id": 136,
-        "product_name": "Vivo X21",
+        "product_name": "Vivo X21 - RP",
         "category": "smartphones",
         "price": 499.99,
         "discount_percentage": 17.41,
@@ -1769,7 +1769,7 @@
     },
     {
         "product_id": 137,
-        "product_name": "American Football",
+        "product_name": "American Football - RP",
         "category": "sports-accessories",
         "price": 19.99,
         "discount_percentage": 4.93,
@@ -1782,7 +1782,7 @@
     },
     {
         "product_id": 138,
-        "product_name": "Baseball Ball",
+        "product_name": "Baseball Ball - RP",
         "category": "sports-accessories",
         "price": 8.99,
         "discount_percentage": 1.71,
@@ -1795,7 +1795,7 @@
     },
     {
         "product_id": 139,
-        "product_name": "Baseball Glove",
+        "product_name": "Baseball Glove - RP",
         "category": "sports-accessories",
         "price": 24.99,
         "discount_percentage": 2.9,
@@ -1808,7 +1808,7 @@
     },
     {
         "product_id": 140,
-        "product_name": "Basketball",
+        "product_name": "Basketball - RP",
         "category": "sports-accessories",
         "price": 14.99,
         "discount_percentage": 7.44,
@@ -1821,7 +1821,7 @@
     },
     {
         "product_id": 141,
-        "product_name": "Basketball Rim",
+        "product_name": "Basketball Rim - RP",
         "category": "sports-accessories",
         "price": 39.99,
         "discount_percentage": 7.74,
@@ -1834,7 +1834,7 @@
     },
     {
         "product_id": 142,
-        "product_name": "Cricket Ball",
+        "product_name": "Cricket Ball - RP",
         "category": "sports-accessories",
         "price": 12.99,
         "discount_percentage": 8.63,
@@ -1847,7 +1847,7 @@
     },
     {
         "product_id": 143,
-        "product_name": "Cricket Bat",
+        "product_name": "Cricket Bat - RP",
         "category": "sports-accessories",
         "price": 29.99,
         "discount_percentage": 3.29,
@@ -1860,7 +1860,7 @@
     },
     {
         "product_id": 144,
-        "product_name": "Cricket Helmet",
+        "product_name": "Cricket Helmet - RP",
         "category": "sports-accessories",
         "price": 44.99,
         "discount_percentage": 9.64,
@@ -1873,7 +1873,7 @@
     },
     {
         "product_id": 145,
-        "product_name": "Cricket Wicket",
+        "product_name": "Cricket Wicket - RP",
         "category": "sports-accessories",
         "price": 29.99,
         "discount_percentage": 16.93,
@@ -1886,7 +1886,7 @@
     },
     {
         "product_id": 146,
-        "product_name": "Feather Shuttlecock",
+        "product_name": "Feather Shuttlecock - RP",
         "category": "sports-accessories",
         "price": 5.99,
         "discount_percentage": 2.95,
@@ -1899,7 +1899,7 @@
     },
     {
         "product_id": 147,
-        "product_name": "Football",
+        "product_name": "Football - RP",
         "category": "sports-accessories",
         "price": 17.99,
         "discount_percentage": 5.15,
@@ -1912,7 +1912,7 @@
     },
     {
         "product_id": 148,
-        "product_name": "Golf Ball",
+        "product_name": "Golf Ball - RP",
         "category": "sports-accessories",
         "price": 9.99,
         "discount_percentage": 17.37,
@@ -1925,7 +1925,7 @@
     },
     {
         "product_id": 149,
-        "product_name": "Iron Golf",
+        "product_name": "Iron Golf - RP",
         "category": "sports-accessories",
         "price": 49.99,
         "discount_percentage": 6.53,
@@ -1938,7 +1938,7 @@
     },
     {
         "product_id": 150,
-        "product_name": "Metal Baseball Bat",
+        "product_name": "Metal Baseball Bat - RP",
         "category": "sports-accessories",
         "price": 29.99,
         "discount_percentage": 19.51,
@@ -1951,7 +1951,7 @@
     },
     {
         "product_id": 151,
-        "product_name": "Tennis Ball",
+        "product_name": "Tennis Ball - RP",
         "category": "sports-accessories",
         "price": 6.99,
         "discount_percentage": 11.76,
@@ -1964,7 +1964,7 @@
     },
     {
         "product_id": 152,
-        "product_name": "Tennis Racket",
+        "product_name": "Tennis Racket - RP",
         "category": "sports-accessories",
         "price": 49.99,
         "discount_percentage": 19.61,
@@ -1977,7 +1977,7 @@
     },
     {
         "product_id": 153,
-        "product_name": "Volleyball",
+        "product_name": "Volleyball - RP",
         "category": "sports-accessories",
         "price": 11.99,
         "discount_percentage": 12.25,
@@ -1990,7 +1990,7 @@
     },
     {
         "product_id": 154,
-        "product_name": "Black Sun Glasses",
+        "product_name": "Black Sun Glasses - RP",
         "category": "sunglasses",
         "price": 29.99,
         "discount_percentage": 4.94,
@@ -2003,7 +2003,7 @@
     },
     {
         "product_id": 155,
-        "product_name": "Classic Sun Glasses",
+        "product_name": "Classic Sun Glasses - RP",
         "category": "sunglasses",
         "price": 24.99,
         "discount_percentage": 4.94,
@@ -2016,7 +2016,7 @@
     },
     {
         "product_id": 156,
-        "product_name": "Green and Black Glasses",
+        "product_name": "Green and Black Glasses - RP",
         "category": "sunglasses",
         "price": 34.99,
         "discount_percentage": 1.01,
@@ -2029,7 +2029,7 @@
     },
     {
         "product_id": 157,
-        "product_name": "Party Glasses",
+        "product_name": "Party Glasses - RP",
         "category": "sunglasses",
         "price": 19.99,
         "discount_percentage": 11.22,
@@ -2042,7 +2042,7 @@
     },
     {
         "product_id": 158,
-        "product_name": "Sunglasses",
+        "product_name": "Sunglasses - RP",
         "category": "sunglasses",
         "price": 22.99,
         "discount_percentage": 1.51,
@@ -2055,7 +2055,7 @@
     },
     {
         "product_id": 159,
-        "product_name": "iPad Mini 2021 Starlight",
+        "product_name": "iPad Mini 2021 Starlight - RP",
         "category": "tablets",
         "price": 499.99,
         "discount_percentage": 3.64,
@@ -2068,7 +2068,7 @@
     },
     {
         "product_id": 160,
-        "product_name": "Samsung Galaxy Tab S8 Plus Grey",
+        "product_name": "Samsung Galaxy Tab S8 Plus Grey - RP",
         "category": "tablets",
         "price": 599.99,
         "discount_percentage": 13.31,
@@ -2081,7 +2081,7 @@
     },
     {
         "product_id": 161,
-        "product_name": "Samsung Galaxy Tab White",
+        "product_name": "Samsung Galaxy Tab White - RP",
         "category": "tablets",
         "price": 349.99,
         "discount_percentage": 18.2,
@@ -2094,7 +2094,7 @@
     },
     {
         "product_id": 162,
-        "product_name": "Blue Frock",
+        "product_name": "Blue Frock - RP",
         "category": "tops",
         "price": 29.99,
         "discount_percentage": 12.13,
@@ -2107,7 +2107,7 @@
     },
     {
         "product_id": 163,
-        "product_name": "Girl Summer Dress",
+        "product_name": "Girl Summer Dress - RP",
         "category": "tops",
         "price": 19.99,
         "discount_percentage": 19.2,
@@ -2120,7 +2120,7 @@
     },
     {
         "product_id": 164,
-        "product_name": "Gray Dress",
+        "product_name": "Gray Dress - RP",
         "category": "tops",
         "price": 34.99,
         "discount_percentage": 14.28,
@@ -2133,7 +2133,7 @@
     },
     {
         "product_id": 165,
-        "product_name": "Short Frock",
+        "product_name": "Short Frock - RP",
         "category": "tops",
         "price": 24.99,
         "discount_percentage": 13.45,
@@ -2146,7 +2146,7 @@
     },
     {
         "product_id": 166,
-        "product_name": "Tartan Dress",
+        "product_name": "Tartan Dress - RP",
         "category": "tops",
         "price": 39.99,
         "discount_percentage": 12.95,
@@ -2159,7 +2159,7 @@
     },
     {
         "product_id": 167,
-        "product_name": "300 Touring",
+        "product_name": "300 Touring - RP",
         "category": "vehicle",
         "price": 28999.99,
         "discount_percentage": 3.98,
@@ -2172,7 +2172,7 @@
     },
     {
         "product_id": 168,
-        "product_name": "Charger SXT RWD",
+        "product_name": "Charger SXT RWD - RP",
         "category": "vehicle",
         "price": 32999.99,
         "discount_percentage": 8.23,
@@ -2185,7 +2185,7 @@
     },
     {
         "product_id": 169,
-        "product_name": "Dodge Hornet GT Plus",
+        "product_name": "Dodge Hornet GT Plus - RP",
         "category": "vehicle",
         "price": 24999.99,
         "discount_percentage": 2.63,
@@ -2198,7 +2198,7 @@
     },
     {
         "product_id": 170,
-        "product_name": "Durango SXT RWD",
+        "product_name": "Durango SXT RWD - RP",
         "category": "vehicle",
         "price": 36999.99,
         "discount_percentage": 16.44,
@@ -2211,7 +2211,7 @@
     },
     {
         "product_id": 171,
-        "product_name": "Pacifica Touring",
+        "product_name": "Pacifica Touring - RP",
         "category": "vehicle",
         "price": 31999.99,
         "discount_percentage": 14.76,
@@ -2224,7 +2224,7 @@
     },
     {
         "product_id": 172,
-        "product_name": "Blue Women's Handbag",
+        "product_name": "Blue Women's Handbag - RP",
         "category": "womens-bags",
         "price": 49.99,
         "discount_percentage": 17.88,
@@ -2237,7 +2237,7 @@
     },
     {
         "product_id": 173,
-        "product_name": "Heshe Women's Leather Bag",
+        "product_name": "Heshe Women's Leather Bag - RP",
         "category": "womens-bags",
         "price": 129.99,
         "discount_percentage": 3.87,
@@ -2250,7 +2250,7 @@
     },
     {
         "product_id": 174,
-        "product_name": "Prada Women Bag",
+        "product_name": "Prada Women Bag - RP",
         "category": "womens-bags",
         "price": 599.99,
         "discount_percentage": 14.09,
@@ -2263,7 +2263,7 @@
     },
     {
         "product_id": 175,
-        "product_name": "White Faux Leather Backpack",
+        "product_name": "White Faux Leather Backpack - RP",
         "category": "womens-bags",
         "price": 39.99,
         "discount_percentage": 15.2,
@@ -2276,7 +2276,7 @@
     },
     {
         "product_id": 176,
-        "product_name": "Women Handbag Black",
+        "product_name": "Women Handbag Black - RP",
         "category": "womens-bags",
         "price": 59.99,
         "discount_percentage": 11.63,
@@ -2289,7 +2289,7 @@
     },
     {
         "product_id": 177,
-        "product_name": "Black Women's Gown",
+        "product_name": "Black Women's Gown - RP",
         "category": "womens-dresses",
         "price": 129.99,
         "discount_percentage": 10.48,
@@ -2302,7 +2302,7 @@
     },
     {
         "product_id": 178,
-        "product_name": "Corset Leather With Skirt",
+        "product_name": "Corset Leather With Skirt - RP",
         "category": "womens-dresses",
         "price": 89.99,
         "discount_percentage": 16.26,
@@ -2315,7 +2315,7 @@
     },
     {
         "product_id": 179,
-        "product_name": "Corset With Black Skirt",
+        "product_name": "Corset With Black Skirt - RP",
         "category": "womens-dresses",
         "price": 79.99,
         "discount_percentage": 15.06,
@@ -2328,7 +2328,7 @@
     },
     {
         "product_id": 180,
-        "product_name": "Dress Pea",
+        "product_name": "Dress Pea - RP",
         "category": "womens-dresses",
         "price": 49.99,
         "discount_percentage": 17.68,
@@ -2341,7 +2341,7 @@
     },
     {
         "product_id": 181,
-        "product_name": "Marni Red & Black Suit",
+        "product_name": "Marni Red & Black Suit - RP",
         "category": "womens-dresses",
         "price": 179.99,
         "discount_percentage": 19.02,
@@ -2354,7 +2354,7 @@
     },
     {
         "product_id": 182,
-        "product_name": "Green Crystal Earring",
+        "product_name": "Green Crystal Earring - RP",
         "category": "womens-jewellery",
         "price": 29.99,
         "discount_percentage": 15.24,
@@ -2367,7 +2367,7 @@
     },
     {
         "product_id": 183,
-        "product_name": "Green Oval Earring",
+        "product_name": "Green Oval Earring - RP",
         "category": "womens-jewellery",
         "price": 24.99,
         "discount_percentage": 15.18,
@@ -2380,7 +2380,7 @@
     },
     {
         "product_id": 184,
-        "product_name": "Tropical Earring",
+        "product_name": "Tropical Earring - RP",
         "category": "womens-jewellery",
         "price": 19.99,
         "discount_percentage": 0.76,
@@ -2393,7 +2393,7 @@
     },
     {
         "product_id": 185,
-        "product_name": "Black & Brown Slipper",
+        "product_name": "Black & Brown Slipper - RP",
         "category": "womens-shoes",
         "price": 19.99,
         "discount_percentage": 3.33,
@@ -2406,7 +2406,7 @@
     },
     {
         "product_id": 186,
-        "product_name": "Calvin Klein Heel Shoes",
+        "product_name": "Calvin Klein Heel Shoes - RP",
         "category": "womens-shoes",
         "price": 79.99,
         "discount_percentage": 3.19,
@@ -2419,7 +2419,7 @@
     },
     {
         "product_id": 187,
-        "product_name": "Golden Shoes Woman",
+        "product_name": "Golden Shoes Woman - RP",
         "category": "womens-shoes",
         "price": 49.99,
         "discount_percentage": 13.93,
@@ -2432,7 +2432,7 @@
     },
     {
         "product_id": 188,
-        "product_name": "Pampi Shoes",
+        "product_name": "Pampi Shoes - RP",
         "category": "womens-shoes",
         "price": 29.99,
         "discount_percentage": 14.14,
@@ -2445,7 +2445,7 @@
     },
     {
         "product_id": 189,
-        "product_name": "Red Shoes",
+        "product_name": "Red Shoes - RP",
         "category": "womens-shoes",
         "price": 34.99,
         "discount_percentage": 17.69,
@@ -2458,7 +2458,7 @@
     },
     {
         "product_id": 190,
-        "product_name": "IWC Ingenieur Automatic Steel",
+        "product_name": "IWC Ingenieur Automatic Steel - RP",
         "category": "womens-watches",
         "price": 4999.99,
         "discount_percentage": 9.45,
@@ -2471,7 +2471,7 @@
     },
     {
         "product_id": 191,
-        "product_name": "Rolex Cellini Moonphase",
+        "product_name": "Rolex Cellini Moonphase - RP",
         "category": "womens-watches",
         "price": 15999.99,
         "discount_percentage": 4.11,
@@ -2484,7 +2484,7 @@
     },
     {
         "product_id": 192,
-        "product_name": "Rolex Datejust Women",
+        "product_name": "Rolex Datejust Women - RP",
         "category": "womens-watches",
         "price": 10999.99,
         "discount_percentage": 15.94,
@@ -2497,7 +2497,7 @@
     },
     {
         "product_id": 193,
-        "product_name": "Watch Gold for Women",
+        "product_name": "Watch Gold for Women - RP",
         "category": "womens-watches",
         "price": 799.99,
         "discount_percentage": 18.34,
@@ -2510,7 +2510,7 @@
     },
     {
         "product_id": 194,
-        "product_name": "Women's Wrist Watch",
+        "product_name": "Women's Wrist Watch - RP",
         "category": "womens-watches",
         "price": 129.99,
         "discount_percentage": 12.6,

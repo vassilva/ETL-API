@@ -228,6 +228,7 @@ Examples of transformation logic include:
 
 - Field mapping
 - Full-name generation
+- Product name rule: `product_name = source title + " - RP"` (complete original title kept, suffix added exactly once; products only, cart items keep the original title)
 - Product price calculations
 - Discount calculations
 - Cart normalization

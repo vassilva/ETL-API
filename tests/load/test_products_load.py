@@ -96,3 +96,48 @@ def test_products_data_reconciliation(processed_products, db_connection):
             actual_product["availability_status"]
             == expected_product["availability_status"]
         )
+
+
+# Source-to-target: PostgreSQL product_name = RAW title + " - RP", matched by
+# product_id, with no product missing or added
+def test_products_name_source_to_target(raw_products, db_connection):
+    database_products = fetch_records(
+        db_connection,
+        "SELECT product_id, product_name FROM products"
+    )
+
+    database_by_id = index_by(database_products, "product_id")
+
+    assert database_by_id.keys() == {product["id"] for product in raw_products}
+
+    for raw_product in raw_products:
+        assert (
+            database_by_id[raw_product["id"]]["product_name"]
+            == raw_product["title"] + " - RP"
+        )
+
+
+# Validate the whole products table: every name is present, ends with " - RP"
+# and never carries the suffix twice
+def test_products_names_have_single_rp_suffix(db_connection):
+    cursor = db_connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            COUNT(*) FILTER (
+                WHERE product_name IS NULL OR BTRIM(product_name) = ''
+            ),
+            COUNT(*) FILTER (WHERE product_name NOT LIKE '% - RP'),
+            COUNT(*) FILTER (WHERE product_name LIKE '% - RP - RP')
+        FROM products
+        """
+    )
+
+    null_or_empty, missing_suffix, duplicated_suffix = cursor.fetchone()
+
+    cursor.close()
+
+    assert null_or_empty == 0
+    assert missing_suffix == 0
+    assert duplicated_suffix == 0

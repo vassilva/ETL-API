@@ -68,7 +68,7 @@ Power BI is used as the reporting and business validation layer on top of the Po
 
 ```text
 src/
-├── main.py                 # Pipeline entry point: extract + transform (no load)
+├── main.py                 # Pipeline entry point: extract + transform (+ load with --load)
 ├── config/settings.py      # Centralized configuration (the only env reader)
 ├── api/client.py           # HTTP client: base URL, timeout, status checks, safe errors
 ├── extract/                # Fetch source resources and save data/raw
@@ -84,10 +84,11 @@ tests/
 ├── api/                    # API client unit tests (mocked HTTP)
 ├── extract/                # Live API data quality + offline extract unit tests
 ├── transform/              # Mapping/rule tests on generated files + synthetic unit tests
-└── load/                   # PostgreSQL reconciliation (read-only) + offline DB unit tests
+├── load/                   # PostgreSQL reconciliation (read-only) + offline DB unit tests
+└── e2e/                    # Opt-in end-to-end ETL run + idempotency (writes data/ and PostgreSQL)
 
 data/raw, data/processed    # Generated pipeline artifacts
-sql/                        # DDL reference (never executed automatically)
+sql/create_tables.sql       # Target schema DDL (IF NOT EXISTS; never executed automatically)
 reports/                    # Local test reports (git-ignored)
 ```
 
@@ -108,15 +109,13 @@ Run the pipeline (extract + transform) from the project root:
 python src/main.py
 ```
 
-The load step is run manually and only when intended, from the `src` directory:
+Run the complete ETL, including the load into PostgreSQL (requires the `DB_*` settings and the tables from `sql/create_tables.sql`):
 
 ```text
-cd src
-python -m load.users
-python -m load.products
-python -m load.carts
-python -m load.cart_items
+python src/main.py --load
 ```
+
+Loading is opt-in: without `--load` the pipeline never touches the database. The load upserts in foreign-key order (users, products, carts, cart_items), so running it again updates rows in place instead of duplicating them. The individual load steps can still be run on their own from the `src` directory (`python -m load.users`, `load.products`, `load.carts`, `load.cart_items`).
 
 ---
 
@@ -135,6 +134,7 @@ Tests are grouped by ETL stage and tagged with Pytest markers (similar to tags i
 | `pytest -m live_api` | Source data checks with real GET requests to the external API |
 | `pytest -m database` | PostgreSQL reconciliation (read-only session) |
 | `pytest -m extract` / `transform` / `load` | One ETL stage |
+| `pytest -m e2e --run-e2e` | Real end-to-end ETL run (API -> data/ -> PostgreSQL), run twice to validate idempotency |
 
 Marker meaning:
 
@@ -142,7 +142,8 @@ Marker meaning:
 - `integration`: requires an external system. Added automatically (in `tests/conftest.py`) to every `live_api` and `database` test, so it never needs to be written by hand.
 - `artifacts`: requires generated files in `data/`. Run `python src/main.py` first; the tests fail with a clear message if files are missing.
 - `database`: uses a read-only PostgreSQL session; tests cannot modify data.
-- Tests never write to `data/` or to the database.
+- `e2e`: executes `python src/main.py --load` twice, then validates row counts against the live API, key uniqueness, referential integrity, mandatory fields, business rules, source-to-database values, and idempotency (no duplicates, unchanged content, every row upserted in place). It **writes** to `data/` and upserts into PostgreSQL, so it is skipped unless `--run-e2e` is given. It is also `live_api` + `database`, so it is never part of the offline selections.
+- Apart from `e2e`, tests never write to `data/` or to the database.
 - Assertions on personal-data fields report only the record ID and field name, never the values.
 
 Lint: `ruff check src tests`
@@ -210,10 +211,11 @@ The load layer preserves relationships between datasets and provides the target 
 
 Automated Data Quality checks are implemented using Pytest.
 
-The regression suite contains **141 automated tests** covering the Extract, Transform, and Load layers:
+The regression suite contains **203 automated tests** covering the Extract, Transform, and Load layers:
 
 - 87 data quality tests against the live API, generated pipeline files, and PostgreSQL
 - 54 offline unit tests using synthetic data (API client, extract, transform, database/load infrastructure)
+- 62 opt-in end-to-end tests that run the real ETL twice (skipped without `--run-e2e`)
 
 The validations include:
 
@@ -313,11 +315,12 @@ Intentionally **not** executed by this `Jenkinsfile`:
 |---|---|---|
 | `live_api` | 21 | Requires the external source API |
 | `database` | 28 | Requires PostgreSQL and DB credentials |
-| `integration` | 49 | `live_api` + `database` |
+| `e2e` | 62 | Runs the real ETL against the live API and PostgreSQL (opt-in via `--run-e2e`) |
+| `integration` | 111 | `live_api` + `database` (includes the 62 `e2e` tests) |
 | `smoke` | 10 | Includes `live_api` and `database` tests |
-| `regression` | 141 | Full suite, includes external systems |
+| `regression` | 203 | Full suite, includes external systems |
 | ETL execution (`python src/main.py`) | - | Calls the live API and rewrites `data/` |
-| ETL Load | - | Writes to PostgreSQL |
+| ETL Load (`python src/main.py --load`) | - | Writes to PostgreSQL |
 
 External-system and ETL automation will be handled separately by a future Jenkins job / Jenkinsfile. Until then, these selections run locally only.
 

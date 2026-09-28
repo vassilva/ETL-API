@@ -6,6 +6,9 @@ markers are derived here so they can never drift out of sync:
 
 - regression: every collected test
 - integration: every test marked live_api or database
+
+e2e tests write to data/ and PostgreSQL, so they are skipped unless the
+run explicitly opts in with --run-e2e.
 """
 
 import json
@@ -23,14 +26,29 @@ SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures"
 EXTERNAL_DEPENDENCY_MARKERS = ("live_api", "database")
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-e2e",
+        action="store_true",
+        default=False,
+        help="run e2e tests (executes the real ETL: writes data/ and PostgreSQL)"
+    )
+
+
 # tryfirst: markers must exist before '-m' deselection runs
 @pytest.hookimpl(tryfirst=True)
-def pytest_collection_modifyitems(items):
+def pytest_collection_modifyitems(config, items):
+    run_e2e = config.getoption("--run-e2e")
+    skip_e2e = pytest.mark.skip(reason="writes data/ and PostgreSQL; use --run-e2e")
+
     for item in items:
         item.add_marker(pytest.mark.regression)
 
         if any(item.get_closest_marker(name) for name in EXTERNAL_DEPENDENCY_MARKERS):
             item.add_marker(pytest.mark.integration)
+
+        if item.get_closest_marker("e2e") and not run_e2e:
+            item.add_marker(skip_e2e)
 
 
 # Synthetic test data (tests/fixtures) — deterministic, no real data

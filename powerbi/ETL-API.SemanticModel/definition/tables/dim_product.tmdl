@@ -1,0 +1,84 @@
+/// One product, current snapshot (bi.dim_product).
+table dim_product
+
+	/// Current product stock snapshot (not historical). Always from dim_product.
+	measure 'Current Stock' = SUM ( dim_product[stock] )
+		formatString: #,##0
+		displayFolder: Inventory
+
+	/// Current stock divided by quantity in carts (directional only).
+	measure 'Stock Coverage' = DIVIDE ( [Current Stock], [Quantity in Carts] )
+		formatString: #,##0.00
+		displayFolder: Inventory
+
+	column product_id
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: product_id
+
+	/// Product display name (ETL rule: title + " - RP")
+	column product_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: product_name
+
+	column category
+		dataType: string
+		summarizeBy: none
+		sourceColumn: category
+
+	/// Brand; "(No brand)" when the source has none
+	column brand
+		dataType: string
+		summarizeBy: none
+		sourceColumn: brand
+
+	column price
+		dataType: decimal
+		formatString: #,##0.00
+		summarizeBy: none
+		sourceColumn: price
+
+	column discount_percentage
+		dataType: decimal
+		formatString: 0.00
+		summarizeBy: none
+		sourceColumn: discount_percentage
+
+	column rating
+		dataType: decimal
+		formatString: 0.00
+		summarizeBy: none
+		sourceColumn: rating
+
+	/// Current stock snapshot. Use the [Current Stock] measure; never aggregate through cart lines
+	column stock
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: stock
+
+	column availability_status
+		dataType: string
+		summarizeBy: none
+		sourceColumn: availability_status
+
+	column sku
+		dataType: string
+		summarizeBy: none
+		sourceColumn: sku
+
+	partition dim_product-partition = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(#"PostgreSQL Server", #"PostgreSQL Database"),
+				    Data = Source{[Schema = "bi", Item = "dim_product"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table
+

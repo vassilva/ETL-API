@@ -1,0 +1,47 @@
+/// One customer (bi.dim_customer). No email or phone.
+table dim_customer
+
+	column user_id
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: user_id
+
+	column full_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: full_name
+
+	column city
+		dataType: string
+		summarizeBy: none
+		sourceColumn: city
+
+	column state
+		dataType: string
+		summarizeBy: none
+		sourceColumn: state
+
+	column country
+		dataType: string
+		summarizeBy: none
+		sourceColumn: country
+
+	/// Department of the customer's employer (not a customer segment)
+	column department
+		dataType: string
+		summarizeBy: none
+		sourceColumn: department
+
+	partition dim_customer-partition = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(#"PostgreSQL Server", #"PostgreSQL Database"),
+				    Data = Source{[Schema = "bi", Item = "dim_customer"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table
+

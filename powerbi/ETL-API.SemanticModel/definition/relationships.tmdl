@@ -1,0 +1,8 @@
+relationship fact_cart_item_product
+	fromColumn: fact_cart_item.product_id
+	toColumn: dim_product.product_id
+
+relationship fact_cart_item_customer
+	fromColumn: fact_cart_item.user_id
+	toColumn: dim_customer.user_id
+

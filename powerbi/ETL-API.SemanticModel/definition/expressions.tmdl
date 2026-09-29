@@ -1,0 +1,10 @@
+/// PostgreSQL server (host:port) of the ETL target database
+expression 'PostgreSQL Server' = "localhost:5432" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+	annotation PBI_ResultType = Text
+
+/// ETL target database that contains the bi schema
+expression 'PostgreSQL Database' = "etl_api" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+	annotation PBI_ResultType = Text
+

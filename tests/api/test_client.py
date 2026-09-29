@@ -1,8 +1,9 @@
 import pytest
 import requests
 
+import api.client
 from api.client import ApiClient, ApiError
-from config.settings import get_settings
+from config.settings import Settings
 
 
 pytestmark = [pytest.mark.api, pytest.mark.unit]
@@ -70,13 +71,20 @@ def test_get_resource_requests_full_collection():
     }]
 
 
-# Validate that the client falls back to centralized settings
-def test_client_uses_centralized_settings():
+# Validate that the client falls back to centralized settings. Distinct,
+# injected values prove they come from the settings, not from a default.
+def test_client_uses_centralized_settings(monkeypatch):
+    settings = Settings(
+        api_base_url="https://settings.example.test/",
+        api_timeout=12.5,
+        db_connect_timeout=3
+    )
+    monkeypatch.setattr(api.client, "get_settings", lambda: settings)
+
     client = ApiClient(session=FakeSession())
 
-    assert client.base_url == get_settings().api_base_url.rstrip("/")
-    assert client.timeout == get_settings().api_timeout
-    assert client.timeout > 0
+    assert client.base_url == "https://settings.example.test"
+    assert client.timeout == 12.5
 
 
 # Validate that JSON is requested explicitly
@@ -89,7 +97,8 @@ def test_client_sets_accept_json_header():
 
 
 # Validate that HTTP errors expose the status code but never the response body
-@pytest.mark.parametrize("status_code", [401, 404, 500, 503])
+# (one client error and one server error: both take the same code path)
+@pytest.mark.parametrize("status_code", [401, 503])
 def test_http_error_hides_response_body(status_code):
     session = FakeSession(FakeResponse(status_code=status_code, text=SYNTHETIC_BODY))
 

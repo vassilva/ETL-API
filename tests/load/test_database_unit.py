@@ -3,16 +3,12 @@ Offline tests for configuration, connection/transaction handling and load
 modules. All database interaction is faked; nothing touches PostgreSQL.
 """
 
-import re
-
 import psycopg2
 import pytest
 
 import database.connection as connection_module
 import load.cart_items
 import load.carts
-import load.products
-import load.users
 from config.settings import ConfigurationError, Settings
 from utils.json_files import write_json
 
@@ -27,14 +23,6 @@ SYNTHETIC_DB_ENV = {
     "DB_USER": "synthetic-user",
     "DB_PASSWORD": "synthetic-password-value",
 }
-
-LOAD_STATEMENTS = {
-    "users": load.users.UPSERT_USER_SQL,
-    "products": load.products.UPSERT_PRODUCT_SQL,
-    "carts": load.carts.UPSERT_CART_SQL,
-    "cart_items": load.cart_items.UPSERT_CART_ITEM_SQL,
-}
-
 
 class FakeCursor:
     def __init__(self, connection):
@@ -231,43 +219,10 @@ def test_execute_for_each_counts_rows(fake_connect):
     assert len(fake_connect) == 1
 
 
-# Load modules (SQL safety and row mapping)
+# Load modules (row mapping)
 
-# Validate that load SQL is a static upsert without destructive statements
-@pytest.mark.parametrize("table, statement", LOAD_STATEMENTS.items())
-def test_load_sql_is_static_non_destructive_upsert(table, statement):
-    normalized = " ".join(statement.split()).upper()
-
-    assert normalized.startswith(f"INSERT INTO {table.upper()} (")
-    assert "ON CONFLICT" in normalized
-
-    for keyword in ("DELETE", "DROP", "TRUNCATE", "ALTER", "CREATE", "GRANT"):
-        assert not re.search(rf"\b{keyword}\b", normalized)
-
-
-# Validate that each row tuple matches the number of SQL placeholders
-@pytest.mark.parametrize(
-    "statement, row",
-    [
-        (load.users.UPSERT_USER_SQL, load.users.user_row({
-            "user_id": 1, "first_name": "a", "last_name": "b", "full_name": "a b",
-            "email": "e", "phone": "p", "city": "c", "state": "s", "country": "x",
-            "company_name": "co", "department": "d"
-        })),
-        (load.products.UPSERT_PRODUCT_SQL, load.products.product_row({
-            "product_id": 1, "product_name": "n", "category": "c", "price": 1,
-            "discount_percentage": 0, "discounted_price": 1, "rating": 1, "stock": 1,
-            "brand": None, "sku": "s", "availability_status": "a"
-        })),
-        (load.carts.UPSERT_CART_SQL, load.carts.cart_row({
-            "cart_id": 1, "user_id": 1, "total": 1, "discounted_total": 1,
-            "total_products": 1, "total_quantity": 1
-        })),
-    ]
-)
-def test_row_matches_placeholders(statement, row):
-    assert statement.count("%s") == len(row)
-
+# UPSERT structure, non-destructive SQL, row/column alignment and placeholder
+# counts: see test_load_contract_unit.py
 
 # Validate cart item rows: positions restart at 1 for every cart
 def test_cart_item_rows_positions():

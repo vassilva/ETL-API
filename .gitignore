@@ -45,6 +45,8 @@ htmlcov/
 # The versioned copy used by offline tests is tests/fixtures/snapshot/.
 data/raw/
 data/processed/
+# Load freshness baseline (row versions captured before each Load)
+data/state/
 
 # Test reports (may contain assertion output)
 reports/*

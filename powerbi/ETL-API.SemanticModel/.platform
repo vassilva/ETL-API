@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "ETL-API"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "9767b35f-f9d3-4654-bc2f-8134be14c3cc"
+  }
+}

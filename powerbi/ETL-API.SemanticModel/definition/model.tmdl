@@ -1,0 +1,14 @@
+/// ETL-API management model: thin read-only bi views (PostgreSQL). Snapshot of cart data; no time dimension. Cart Value is not confirmed revenue; Quantity in Carts is not units sold; Current Stock is a current snapshot.
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["PostgreSQL Server","PostgreSQL Database","dim_customer","dim_product","fact_cart_item"]
+
+ref table dim_customer
+ref table dim_product
+ref table fact_cart_item
+

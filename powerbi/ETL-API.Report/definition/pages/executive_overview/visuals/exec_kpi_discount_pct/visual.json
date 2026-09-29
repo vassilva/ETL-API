@@ -1,0 +1,53 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "exec_kpi_discount_pct",
+  "position": {
+    "x": 958,
+    "y": 76,
+    "z": 7000,
+    "height": 84,
+    "width": 302,
+    "tabOrder": 7000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_cart_item"
+                    }
+                  },
+                  "Property": "Discount %"
+                }
+              },
+              "queryRef": "fact_cart_item.Discount %",
+              "nativeQueryRef": "Discount %",
+              "displayName": "Discount %"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "labels": [
+        {
+          "properties": {
+            "labelDisplayUnits": {
+              "expr": {
+                "Literal": {
+                  "Value": "1D"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

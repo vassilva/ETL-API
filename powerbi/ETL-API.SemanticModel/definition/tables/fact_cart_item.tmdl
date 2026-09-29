@@ -1,0 +1,152 @@
+/// One product line inside one cart (bi.fact_cart_item). Cart values are not confirmed revenue.
+table fact_cart_item
+
+	/// Gross value of cart lines. Not confirmed revenue.
+	measure 'Cart Value' = SUM ( fact_cart_item[gross_value] )
+		formatString: #,##0.00
+		displayFolder: Cart Value
+
+	/// Value of cart lines after discount.
+	measure 'Discounted Value' = SUM ( fact_cart_item[discounted_value] )
+		formatString: #,##0.00
+		displayFolder: Cart Value
+
+	/// Discount given on cart lines.
+	measure 'Discount Value' = [Cart Value] - [Discounted Value]
+		formatString: #,##0.00
+		displayFolder: Cart Value
+
+	/// Effective discount, weighted by cart value.
+	measure 'Discount %' = DIVIDE ( [Discount Value], [Cart Value] )
+		formatString: 0.00%
+		displayFolder: Cart Value
+
+	/// Average value per cart (skewed: compare with the median).
+	measure 'Avg Cart Value' = DIVIDE ( [Cart Value], [Carts] )
+		formatString: #,##0.00
+		displayFolder: Cart Value
+
+	/// Median value per cart.
+	measure 'Median Cart Value' = MEDIANX ( VALUES ( fact_cart_item[cart_id] ), [Cart Value] )
+		formatString: #,##0.00
+		displayFolder: Cart Value
+
+	/// Number of carts (with a product filter: carts containing the product).
+	measure Carts = DISTINCTCOUNT ( fact_cart_item[cart_id] )
+		formatString: #,##0
+		displayFolder: Carts & Quantity
+
+	/// Units currently represented in customer carts. Not units sold. 0 when none.
+	measure 'Quantity in Carts' = COALESCE ( SUM ( fact_cart_item[quantity] ), 0 )
+		formatString: #,##0
+		displayFolder: Carts & Quantity
+
+	/// Units in carts (blank when none). Not units sold.
+	measure Units = SUM ( fact_cart_item[quantity] )
+		formatString: #,##0
+		displayFolder: Carts & Quantity
+
+	column cart_id
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: cart_id
+
+	column item_position
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: item_position
+
+	column user_id
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: user_id
+
+	column product_id
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: product_id
+
+	/// Units in customer carts (not units sold)
+	column quantity
+		dataType: int64
+		isHidden
+		formatString: #,##0
+		summarizeBy: none
+		sourceColumn: quantity
+
+	column unit_price
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		summarizeBy: none
+		sourceColumn: unit_price
+
+	column gross_value
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		summarizeBy: none
+		sourceColumn: gross_value
+
+	column discounted_value
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		summarizeBy: none
+		sourceColumn: discounted_value
+
+	column discount_value
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		summarizeBy: none
+		sourceColumn: discount_value
+
+	column discount_percentage
+		dataType: decimal
+		isHidden
+		formatString: 0.00
+		summarizeBy: none
+		sourceColumn: discount_percentage
+
+	/// Band number of the whole cart (thresholds 1k / 10k / 50k); sort key of Cart Value Band
+	column 'Cart Value Band Sort' =
+			VAR CartValue =
+			    CALCULATE ( SUM ( fact_cart_item[gross_value] ), ALLEXCEPT ( fact_cart_item, fact_cart_item[cart_id] ) )
+			RETURN
+			    SWITCH ( TRUE (), CartValue < 1000, 1, CartValue < 10000, 2, CartValue < 50000, 3, 4 )
+		dataType: int64
+		isHidden
+		summarizeBy: none
+
+	/// Value band of the whole cart this line belongs to (cart-value distribution)
+	column 'Cart Value Band' =
+			SWITCH ( fact_cart_item[Cart Value Band Sort],
+			    1, "< 1k",
+			    2, "1k - 10k",
+			    3, "10k - 50k",
+			    ">= 50k"
+			)
+		dataType: string
+		summarizeBy: none
+		sortByColumn: 'Cart Value Band Sort'
+
+	partition fact_cart_item-partition = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database(#"PostgreSQL Server", #"PostgreSQL Database"),
+				    Data = Source{[Schema = "bi", Item = "fact_cart_item"]}[Data]
+				in
+				    Data
+
+	annotation PBI_ResultType = Table
+

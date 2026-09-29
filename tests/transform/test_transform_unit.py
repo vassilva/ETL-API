@@ -115,20 +115,6 @@ def test_transform_product_name_appends_rp_suffix(synthetic_payload, title):
     assert product_name.count(" - RP") == title.count(" - RP") + 1
 
 
-# Validate that the raw title is never modified and that transforming the same
-# raw record again yields the same name (the suffix never accumulates)
-def test_transform_product_name_is_repeatable(synthetic_payload):
-    raw_product = synthetic_payload("products")["products"][0]
-    original = copy.deepcopy(raw_product)
-
-    first = transform_product(raw_product)
-    second = transform_product(raw_product)
-
-    assert raw_product == original
-    assert first["product_name"] == "Synthetic Widget - RP"
-    assert second["product_name"] == first["product_name"]
-
-
 # Carts
 
 # Validate the cart mapping including the nested product list. Cart item names

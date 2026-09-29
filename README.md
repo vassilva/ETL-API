@@ -6,7 +6,7 @@ This project implements an end-to-end ETL pipeline designed to simulate a produc
 
 The solution extracts data from external REST APIs, applies transformation and data quality rules, loads the processed data into PostgreSQL, and automatically validates the resulting datasets through an automated test suite.
 
-Jenkins is used as the Continuous Integration layer. A single Multibranch Pipeline (one root `Jenkinsfile`) runs an offline quality gate (lint + offline tests) followed by the real Integration / E2E layer: live API checks, the real ETL into PostgreSQL, database validation and idempotency.
+Jenkins is the CI/CD layer. A single Multibranch Pipeline (one root `Jenkinsfile`) selects the lifecycle from the build event alone: a feature-branch push runs **Sanity**; a Pull Request runs **Sanity -> Smoke -> Pre-Merge Regression -> Required Quality Gate** (the required merge status); `main` runs **Sanity**, then a **Manual Deployment Approval** and a **Fake Deployment** (see [CI/CD Lifecycle](#cicd-lifecycle)).
 
 The project was developed as a hands-on environment for practicing ETL testing, database validation, pipeline automation, Git workflows, and CI/CD concepts from a QA/Data QA perspective.
 
@@ -78,16 +78,20 @@ src/
 └── utils/json_files.py     # JSON read/write anchored to the project root
 
 tests/
-├── conftest.py             # Shared fixtures, regression marker
-├── support/                # Test helpers (read-only DB queries, value-hiding assertions)
+├── conftest.py             # Markers, fixtures (snapshot, runtime artifacts, live source, read-only DB)
+├── support/                # ETL contract (independent oracle), reconciliation engine, DB helpers, Load baseline, Quality Gate
 ├── fixtures/               # Synthetic data + snapshot/ (versioned copy of one real run)
 ├── api/                    # API client unit tests (mocked HTTP)
-├── extract/                # Live API data quality + offline extract unit tests
-├── transform/              # Mapping/rule tests on generated files + synthetic unit tests
-├── load/                   # PostgreSQL reconciliation (read-only) + offline DB unit tests
-└── e2e/                    # Opt-in end-to-end ETL run + idempotency (writes data/ and PostgreSQL)
+├── pipeline/               # Entry-point orchestration unit tests
+├── extract/                # Live source quality + offline extract unit tests
+├── transform/              # Snapshot contract/rule/golden tests + synthetic unit tests
+├── load/                   # UPSERT/row-alignment contract + DB infrastructure unit tests
+├── target/                 # Post-load integrity and business rules (set-based SQL)
+├── reconciliation/         # Completeness, boundary reconciliation, control totals, drift
+└── e2e/                    # Idempotency: re-runs the ETL (Pre-Merge Regression, --run-e2e)
 
 data/raw, data/processed    # Runtime ETL artifacts (git-ignored, rewritten by every run)
+data/state                  # Load freshness baseline (git-ignored)
 sql/create_tables.sql       # Target schema DDL (IF NOT EXISTS; never executed automatically)
 reports/                    # Local test reports (git-ignored)
 ```
@@ -123,6 +127,13 @@ python src/main.py --stage transform
 python src/main.py --stage load
 ```
 
+Before a Load that will be validated, capture the Load freshness baseline (read-only; records each target row's version so the checks can prove the Load wrote every row):
+
+```text
+$env:PYTHONPATH = "src;tests"      (PowerShell; cmd: set PYTHONPATH=src;tests)
+python -m support.load_freshness
+```
+
 Loading is opt-in: without `--load` / `--stage load` the pipeline never touches the database. Missing `DB_*` settings stop the run before any work, and only the variable names are reported. The load upserts in foreign-key order (users, products, carts, cart_items), so running it again updates rows in place instead of duplicating them (see [Idempotency](#idempotency)).
 
 ### PostgreSQL requirements
@@ -148,47 +159,50 @@ Configuration is read only from environment variables (or the local `.env`); nam
 
 The source API regenerates metadata such as `meta.createdAt` / `meta.updatedAt` on every request, so a committed `data/` directory became modified after every legitimate ETL run. Runtime output is therefore git-ignored and a real ETL / E2E run leaves `git status` clean, while offline tests keep running against a fixed, reviewed snapshot.
 
-Business-data changes are not ignored: the E2E test `test_processed_matches_versioned_snapshot` compares the loaded (processed) data with the snapshot and fails, reporting only the differing record IDs, if the source business data changes. Untransformed metadata is not part of the processed data and cannot trigger it. To accept a reviewed source change, run the ETL and copy `data/raw/*.json` and `data/processed/*.json` into `tests/fixtures/snapshot/raw` and `.../processed`, then commit the snapshot.
+Business-data changes are not ignored: `test_business_data_drift` (Pre-Merge Regression) compares the loaded (processed) data with the snapshot and fails, reporting only the differing record IDs, if the source business data changes. Untransformed metadata is not part of the processed data and cannot trigger it. To accept a reviewed source change, run the ETL and copy `data/raw/*.json` and `data/processed/*.json` into `tests/fixtures/snapshot/raw` and `.../processed`, then commit the snapshot.
 
 ---
 
 ## Running Tests
 
-Tests are grouped by ETL stage and tagged with Pytest markers (similar to tags in Cypress/Playwright):
+Every test carries markers for **what it validates** (boundary) and **what it needs** (dependency), and belongs to exactly one **pipeline gate**.
 
-| Command | Runs |
+| Marker | Meaning |
 |---|---|
-| `pytest` / `pytest -m regression` | Complete suite |
-| `pytest -m smoke` | One record-count check per stage and dataset (10 tests) |
-| `pytest -m unit` | Offline tests: no network, database, credentials, or generated files |
-| `pytest -m "not integration"` | Everything that runs without network or PostgreSQL (safe offline run) |
-| `pytest -m integration` | Everything that needs an external system (`live_api` + `database`) |
-| `pytest -m api` | Offline tests of our API client (mocked HTTP, no network) |
-| `pytest -m live_api` | Source data checks with real GET requests to the external API |
-| `pytest -m database` | PostgreSQL reconciliation (read-only session) |
-| `pytest -m extract` / `transform` / `load` | One ETL stage |
-| `pytest -m e2e --run-e2e` | Real end-to-end ETL run (API -> data/ -> PostgreSQL), run twice to validate idempotency |
+| `extract` / `transform` / `load` | ETL boundary validated |
+| `unit` | Offline, synthetic data only |
+| `api` | Offline tests of our API client (mocked HTTP) |
+| `live_api` | Calls the real source API |
+| `database` | Needs PostgreSQL (read-only session) |
+| `artifacts` | Needs the **runtime** output of a real ETL run in `data/` |
+| `integration` | Derived automatically from `live_api`, `database` or `artifacts`; offline selections exclude it |
+| `sanity` | **Gate, derived automatically**: every offline test (not `integration`) |
+| `smoke` | **Gate, applied by hand**: the PR critical path on the real ETL run; only valid on `integration` tests |
+| `regression` | **Gate, derived automatically**: every `integration` test not marked `smoke` |
+| `e2e` | Re-runs the ETL (writes `data/` and PostgreSQL); skipped unless `--run-e2e` |
 
-Test layers:
+`sanity` and `regression` are derived in `tests/conftest.py`, so a new test can never be left out of every gate. Applying either by hand, or `smoke` to an offline test, stops the collection with an error.
 
-| Layer | Selection | Tests | Needs |
-|---|---|---|---|
-| Offline: API Client | `-m api` | 11 | nothing |
-| Offline: Unit | `-m "unit and not api"` | 43 | nothing |
-| Offline: Data Quality | `-m "not integration and not unit"` | 38 | versioned snapshot |
-| Integration: live API | `-m "live_api and not e2e"` | 21 | network |
-| Integration: PostgreSQL | `-m "database and not e2e"` | 28 | PostgreSQL + runtime artifacts from a real ETL run |
-| E2E | `-m e2e --run-e2e` | 65 | network + PostgreSQL; writes `data/` and the database |
+Test layers (disjoint selections, 151 tests in total):
 
-Marker meaning:
+| Gate | Layer | Selection | Tests | Needs |
+|---|---|---|---|---|
+| Sanity | API Client | `-m "sanity and api"` | 9 | nothing |
+| Sanity | Unit | `-m "sanity and unit and not api"` | 52 | nothing |
+| Sanity | Offline Data Quality | `-m "sanity and not unit"` | 13 | committed snapshot |
+| Smoke | Source Smoke | `-m "smoke and live_api and not database and not artifacts"` | 7 | network |
+| Smoke | Target Smoke | `-m "smoke and (database or artifacts)"` | 24 | ETL run + PostgreSQL + Load baseline + network |
+| Regression | Source Quality | `-m "regression and live_api and not database and not artifacts"` | 8 | network |
+| Regression | Target Quality & Reconciliation | `-m "regression and (database or artifacts) and not e2e"` | 29 | ETL run + PostgreSQL + network |
+| Regression | Idempotency | `-m "regression and e2e" --run-e2e` | 9 | ETL run + PostgreSQL + network; re-runs the ETL |
 
-- `api` vs `live_api`: `api` tests *our client code* offline; `live_api` calls the *real source API*.
-- `integration`: requires an external system. Added automatically (in `tests/conftest.py`) to every `live_api` and `database` test, so it never needs to be written by hand.
-- `artifacts`: uses pipeline files. Offline tests read the versioned snapshot in `tests/fixtures/snapshot`; database tests read the runtime files in `data/processed` (what the last `python src/main.py --load` loaded) and fail with a clear message if they are missing.
-- `database`: uses a read-only PostgreSQL session; tests cannot modify data.
-- `e2e`: executes `python src/main.py --load` twice, checks the loaded data against the versioned snapshot (business-data drift), then validates row counts against the live API, key uniqueness, referential integrity, mandatory fields, business rules, source-to-database values, and idempotency (no duplicates, unchanged content, every row upserted in place). It **writes** to `data/` and upserts into PostgreSQL, so it is skipped unless `--run-e2e` is given. It is also `live_api` + `database`, so it is never part of the offline selections.
-- Apart from `e2e`, tests never write to `data/` or to the database.
-- Assertions on personal-data fields report only the record ID and field name, never the values.
+Rules the suite follows:
+
+- The expected side of every reconciliation comes from an independent oracle: the live source, the declarative ETL contract (`tests/support/etl_contract.py`, restated from the requirements and `sql/create_tables.sql`) or the committed snapshot; never from the production transform or load code.
+- Record sets are indexed without collapsing duplicates, key sets are compared in both directions before fields, and an empty expected side fails instead of passing vacuously.
+- Failures name the boundary, entity, field, rule, mismatch count, sample keys and expected/actual values; values of personal-data columns are always hidden.
+- Monetary and other `NUMERIC(p, s)` columns are compared as `Decimal`. The only rounding applied is the explicit schema rule on the expected side (the target stores scale `s`); the database value is never rounded.
+- Apart from the Load freshness baseline tool and `e2e`, tests never write to `data/` or to the database.
 
 Lint: `ruff check src tests`
 
@@ -254,59 +268,57 @@ The load layer preserves relationships between datasets and provides the target 
 
 ## Data Quality Strategy
 
-Automated Data Quality checks are implemented using Pytest.
+Automated Data Quality checks are implemented using Pytest: **151 tests**, distributed over three gates by purpose, cost and risk (see [CI/CD Lifecycle](#cicd-lifecycle)).
 
-The regression suite contains **206 automated tests** covering the Extract, Transform, and Load layers:
+| Dimension | Where it is validated |
+|---|---|
+| Completeness | Source collection complete; count **and key set** per boundary (Source, RAW, Processed, Database), anchored to the live source, first divergent boundary reported |
+| Uniqueness | Source ids; business keys at every boundary (completeness and reconciliation report duplicate keys); target keys the schema does not enforce (`email` compared case- and whitespace-insensitively, `sku` trimmed) |
+| Mandatory fields | NULL for every column; also `''`/whitespace for text columns |
+| Validity / business rules | Source rules (price > 0, stock >= 0, ...) and 15 set-based target rules (formulas, ranges, " - RP" suffix, cart header = sum of items) |
+| Referential integrity | Source, committed snapshot and target (anti-joins) |
+| Transformation correctness | Declarative contract on the snapshot (offline) and on this run's RAW -> Processed |
+| Reconciliation | Source -> RAW (every field), RAW -> Processed, Processed -> Database, Source -> Database |
+| Control totals | `products.stock` and `carts.total` at every boundary (dynamic, never hardcoded) |
+| Load freshness | Every target row rewritten by this run's Load |
+| Load contract | UPSERT update completeness and row/column alignment (offline, against the DDL) |
+| Idempotency | ETL re-run: unchanged content, every row upserted |
+| Drift | This run's processed data vs the reviewed snapshot |
 
-- 87 data quality tests against the live API, generated pipeline files, and PostgreSQL
-- 54 offline unit tests using synthetic data (API client, extract, transform, database/load infrastructure)
-- 65 opt-in end-to-end tests that run the real ETL twice (skipped without `--run-e2e`)
+Record-level reconciliation and control totals protect different risks and are both kept: swapping the stock of two products keeps the stock total green while record-level reconciliation fails; losing volume is caught by the total even before individual records are compared.
 
-The validations include:
-
-- Record count validation
-- Mandatory field validation
-- Primary key uniqueness
-- Referential integrity
-- Source-to-target reconciliation
-- Transformation rule validation
-- Calculation validation
-- Product and cart consistency
-- User-to-cart relationship validation
-- Cart-to-product relationship validation
-
-The objective is not only to verify that the ETL process executes successfully, but also to ensure that the data produced by the pipeline remains accurate, complete, consistent, and traceable.
+The Product price rule is explicit and consistent across the suite: **price > 0** (source and target).
 
 ---
 
 ## Idempotency
 
-The load is an UPSERT per table (`INSERT ... ON CONFLICT (key) DO UPDATE`), keyed by `user_id`, `product_id`, `cart_id` and `(cart_id, item_position)`. The E2E suite runs the complete ETL twice against the same database and proves that the second run:
+The load is an UPSERT per table (`INSERT ... ON CONFLICT (key) DO UPDATE`), keyed by `user_id`, `product_id`, `cart_id` and `(cart_id, item_position)`.
 
-- keeps every row count unchanged (and equal to the live API totals);
-- creates no duplicate primary or business keys (`user_id`, `email`, `product_id`, `sku`, `cart_id`, `cart_item_id`, `(cart_id, item_position)`);
-- keeps referential integrity (carts -> users, cart_items -> carts, cart_items -> products);
-- leaves the content of every table identical (hash of every column of every row, including the `cart_items` identity key, so rows are updated in place, not deleted and re-inserted);
-- really takes the UPSERT update path for every existing row (each row gets a new PostgreSQL row version, `xmin`).
+Three complementary controls:
 
-The E2E tests only read the database (read-only session); all writes go through the real ETL entry point.
+| Control | Gate | Proves | Does not prove |
+|---|---|---|---|
+| UPSERT contract (`tests/load/test_load_contract_unit.py`) | Sanity (offline) | Inserted columns = DDL business columns; conflict target = business key (backed by PK/UNIQUE); every non-key column updated from its own `EXCLUDED` value | Runtime behaviour |
+| Load freshness (`test_load_freshness`) | Smoke | This run's Load wrote a new row version (`xmin`) for every target row, compared with a baseline captured just before the Load; a no-op Load fails even when the database already held identical rows | Who wrote the row (see [Build isolation](#build-isolation)) |
+| Idempotency re-run (`tests/e2e`) | Pre-Merge Regression | A second ETL run leaves every table's content unchanged (hash of every column of every row, including the `cart_items` identity key) while rewriting every row | That the UPDATE writes changed source values (both runs load the same data): covered by the UPSERT contract |
+
+`xmin` is used only as a technical "row was written" signal, never as a business value.
 
 ---
 
 ## Source-to-Target Reconciliation
 
-Data reconciliation is an important part of the QA strategy.
+Each ETL boundary is reconciled against its own independent oracle:
 
-Automated tests compare source and target datasets to identify potential issues such as:
+```text
+Source (live API) --[Source -> RAW: every field, API payload]--> RAW
+RAW --[RAW -> Processed: declarative contract]--> Processed
+Processed --[Processed -> Database: processed files, Load boundary only]--> PostgreSQL
+Source (live API) --[Source -> Database: declarative contract, end to end]--> PostgreSQL
+```
 
-- Missing records
-- Unexpected records
-- Incorrect transformations
-- Duplicate identifiers
-- Broken relationships
-- Incorrect calculated values
-
-This provides an additional validation layer beyond simply checking whether the ETL job completed successfully.
+`Processed -> Database` is the correct oracle for the Load boundary, but it is **not** a source-to-target check (the processed files are the Load's own input); `Source -> Database` is the independent end-to-end check. Only the API's own volatile metadata (`meta.createdAt`, `meta.updatedAt`) is excluded from `Source -> RAW`.
 
 ---
 
@@ -314,81 +326,159 @@ This provides an additional validation layer beyond simply checking whether the 
 
 The Jenkins pipeline definition is stored as code in the repository using a `Jenkinsfile`.
 
-This allows the CI configuration to be version-controlled together with the application and test code.
+There is **one** Jenkins Multibranch Pipeline (`ETL-API-Pipeline`) and **one** root `Jenkinsfile`.
 
-There is **one** Jenkins Multibranch Pipeline (`ETL-API-Pipeline`) and **one** root `Jenkinsfile`, with clearly separated test layers:
+### CI/CD Lifecycle
 
 ```text
-Checkout
-   |
-   v
-Build Information
-   |
-   v
-Workspace Guard          (fails if a .env file exists; removes stale reports)
-   |
-   v
-Setup Python             (fresh .venv every build)
-   |
-   v
-Install Dependencies     (requirements-dev.txt + pip check)
-   |
-   v
-Ruff
-   |
-   v
-Offline Tests            (no API, no database, no credentials)
-   +---- API Client
-   +---- Unit
-   +---- Offline Data Quality
-   |
-   v
-Real Integration / E2E   (only after the offline gate passed)
-   +---- Environment Validation   (config present? credential present? DB reachable?)
-   +---- Live DummyJSON
-   +---- Extract
-   +---- Transform
-   +---- Load                     (DB credentials bound here)
-   +---- PostgreSQL Validation    (DB credentials bound here)
-   +---- E2E + Idempotency        (DB credentials bound here)
-   |
-   v
-Publish JUnit results    (always)
-   |
-   v
-GitHub Checks            (final build result, reported by the Multibranch GitHub integration)
-   |
-   v
-Cleanup                  (workspace deleted, including runtime data/)
+Developer
+    |
+    v
+git push (feature branch, no Pull Request yet)
+    |
+    v
+SANITY ---------------------------------------------> Required Quality Gate (no deployment)
+    |
+    v
+Pull Request (opened, or any new push to it)
+    |
+    v
+SANITY -> SMOKE -> PRE-MERGE REGRESSION -> Required Quality Gate
+    |
+    v
+GitHub status continuous-integration/jenkins/pr-merge = SUCCESS (required by branch protection)
+    |
+    v
+Merge to main
+    |
+    v
+SANITY -> Required Quality Gate
+    |
+    v
+Manual Deployment Approval (Jenkins input, 30 minutes)
+    |
+    v
+Fake Deployment
 ```
 
-The pipeline executes on the dedicated Windows Jenkins agent.
+The build event alone selects the lifecycle; the pipeline has **no build parameters**, so nothing can make a feature branch skip a gate or deploy.
 
-| Stage | Command | Tests | JUnit report (suite name) |
-|---|---|---|---|
-| Ruff | `ruff check src tests --no-cache` | - | - |
-| API Client | `pytest -m api` | 11 | `reports/api.xml` (`api`) |
-| Unit | `pytest -m "unit and not api"` | 43 | `reports/unit.xml` (`unit`) |
-| Offline Data Quality | `pytest -m "not integration and not unit"` | 38 | `reports/offline-data.xml` (`offline-data`) |
-| Environment Validation | agent variables + credential check + read-only `python -m database.connection` | - | - |
-| Live DummyJSON | `pytest -m "live_api and not e2e"` | 21 | `reports/integration-live-api.xml` (`integration-live-api`) |
-| Extract / Transform / Load | `python src/main.py --stage extract` / `transform` / `load` | - | - |
-| PostgreSQL Validation | `pytest -m "database and not e2e"` | 28 | `reports/integration-database.xml` (`integration-database`) |
-| E2E + Idempotency | `pytest -m e2e --run-e2e` | 65 | `reports/e2e.xml` (`e2e`) |
+| Event | Jenkins job | Gates | ETL runs | Tests | Deployment |
+|---|---|---|---|---|---|
+| Push to a branch without a Pull Request | branch job | Sanity | 0 | 74 | never |
+| Pull Request opened or updated | `PR-<n>` | Sanity -> Smoke -> Pre-Merge Regression | 2 | 151 | never |
+| Merge to `main` | `main` | Sanity | 0 | 74 | only after manual approval |
 
-The offline selections do not overlap (92 tests), and the integration and E2E selections do not overlap with them or with each other: a full build executes **206 tests**, each once. Each layer is a separate JUnit suite, so API Client, Unit, Offline Data Quality, Integration and E2E results are distinguishable in Jenkins.
+The active gate is printed as `Pipeline gate: <SANITY|PRE_MERGE|MAIN>` together with its lifecycle and required suites.
+
+### Gate purposes
+
+| Gate | Question it answers | What runs | Needs | Cost |
+|---|---|---|---|---|
+| **Sanity** | Is the code structurally healthy enough to continue? | Ruff and every offline test: API client, unit contracts, UPSERT contract and row alignment, orchestration, transform against the independent contract on the committed snapshot | nothing external (the API URL points to a local tripwire; no credentials) | LOW |
+| **Smoke** | Does the critical ETL flow still work correctly? | Source reachable, complete and loadable; one real Extract -> Transform -> Load; Load freshness; completeness at every boundary; Processed -> Database on every column; mandatory fields; referential integrity; normalized business keys; the three rules the ETL implements (`full_name`, `" - RP"` suffix, `discounted_price`) | live API, PostgreSQL, one ETL run | MEDIUM |
+| **Pre-Merge Regression** | Is the data correct in depth, and is the Load idempotent? | Source data quality; Source -> RAW; RAW -> Processed; Source -> Database; all business rules; control totals (stock, cart totals); business-data drift; ETL re-run for idempotency (last) | live API, PostgreSQL, a second ETL run | MEDIUM (post-load checks reuse Smoke's ETL run), HIGH (idempotency) |
+
+Why three different gates, and why the complete suite does not run on every push:
+
+- A push only has to prove that the code is structurally sound. Sanity answers that in seconds, without the shared database, the external API or any credential. Running the ETL on every push would load the shared database with work in progress and make feedback depend on DummyJSON, without improving the decision a push has to make.
+- Smoke proves the critical path end to end on one real run and fails fast: when it fails, the regression (including the ETL re-run) is not spent and the failure is reported as "critical path broken".
+- Pre-Merge Regression holds the broad and expensive checks. It runs where it can still block the change (before merge) and is **not** repeated on `main`: the merge is already protected by it.
+- Every test belongs to exactly one gate, so no expensive validation runs twice. Some protections are deliberately layered across gates because each layer catches a different failure mode: the static row/column alignment (Sanity) and the runtime Processed -> Database reconciliation (Smoke); fail-fast completeness (Smoke) and the full-value Source -> Database oracle (Regression).
+
+### Why Smoke and Pre-Merge Regression run in the same Pull Request build
+
+Jenkins (GitHub Branch Source) knows a single Pull Request event; it has no separate "pre-merge" event. Both gates therefore run in the `PR-<n>` build, one after the other, and the required GitHub status `continuous-integration/jenkins/pr-merge` is the result of **the whole build**. It can only be SUCCESS when Sanity, Smoke, Pre-Merge Regression and the Required Quality Gate all passed; a green Smoke alone never makes it green.
+
+"Exclude branches that are also filed as PRs" is part of this design: before a Pull Request exists a push builds the branch job (Sanity); once it exists, every push builds only the `PR-<n>` job, which runs Sanity itself as its first gate. The same change is never built as branch and PR at the same time.
+
+### Stages
+
+```text
+CI (Windows agent, 20-minute timeout)
+  Build Information -> Pipeline Gate -> Workspace Guard -> Setup Python -> Install Dependencies
+  SANITY                 Ruff -> API Client -> Unit -> Offline Data Quality            every build
+  SMOKE                  Environment Validation -> Source Smoke -> Extract              Pull Request
+                         -> Transform -> Load (baseline first) -> Target Smoke
+  PRE-MERGE REGRESSION   Source Quality -> Target Quality & Reconciliation             Pull Request
+                         -> Idempotency (ETL re-run, always last)
+  Required Quality Gate                                                                 every build
+  Publish JUnit (always) -> Cleanup
+Manual Deployment Approval (no agent, 30 minutes)                                       main
+Fake Deployment (Windows agent)                                                         main, approved
+```
+
+| Gate | Stage | Selection | Tests | JUnit suite |
+|---|---|---|---|---|
+| Sanity | API Client | `-m "sanity and api"` | 9 | `sanity-api` |
+| Sanity | Unit | `-m "sanity and unit and not api"` | 52 | `sanity-unit` |
+| Sanity | Offline Data Quality | `-m "sanity and not unit"` | 13 | `sanity-offline-data` |
+| Smoke | Source Smoke | `-m "smoke and live_api and not database and not artifacts"` | 7 | `smoke-source` |
+| Smoke | Target Smoke | `-m "smoke and (database or artifacts)"` | 24 | `smoke-target` |
+| Regression | Source Quality | `-m "regression and live_api and not database and not artifacts"` | 8 | `regression-source` |
+| Regression | Target Quality & Reconciliation | `-m "regression and (database or artifacts) and not e2e"` | 29 | `regression-target` |
+| Regression | Idempotency | `-m "regression and e2e" --run-e2e` | 9 | `regression-idempotency` |
+
+Per gate: Sanity 74, Smoke 31, Pre-Merge Regression 46 (151 in total).
 
 Behavior:
 
-- Dependency installation or Ruff failures stop the pipeline before any test runs.
-- All three offline test groups always run; a failing group marks its stage and the build as FAILURE.
-- During the offline stages `API_BASE_URL` points to an unreachable local address, so an accidental API request fails immediately instead of reaching the real API.
-- Real Integration / E2E runs only when the offline gate passed; otherwise it is reported as not run (the build is already FAILURE).
-- If the CI database configuration is missing (agent variables or Jenkins credential), the stages are skipped **explicitly**: the log names what is missing and the build is marked **UNSTABLE**, never a silent SUCCESS.
-- If the configuration exists but PostgreSQL is unreachable, Environment Validation fails and the build is **FAILURE**.
-- An Extract, Transform or Load failure stops the remaining stages (FAILURE). A failing integration or E2E test group marks its stage and the build as FAILURE.
-- JUnit results are published after every build, including failed ones; the final result is reported to GitHub Checks; the workspace is always deleted.
-- Builds time out after 20 minutes, never run concurrently per branch, and the last 30 builds are kept.
+- Dependency installation failures stop the build (FAILURE) before any test runs.
+- A Ruff failure skips the Sanity tests; a Sanity failure skips Smoke; any Smoke failure (including Environment Validation, Extract, Transform or Load) skips the rest of Smoke and the whole Regression. Inside Sanity and Regression every group runs and publishes its JUnit suite once the gate has started.
+- In a Pull Request build, missing CI database configuration or unreachable PostgreSQL is a **FAILURE**: a required gate that cannot run never passes as a skip.
+- During Sanity `API_BASE_URL` points to an unreachable local address, so an accidental API request fails immediately.
+- The CI part times out after 20 minutes (ABORTED); builds of one job never run concurrently; the last 30 builds are kept.
+
+### Required Quality Gate
+
+The last CI stage runs in every build and fails it unless **all** of the following hold:
+
+- no required stage failed (every guarded stage records its own failure);
+- every required JUnit suite exists (a stage that never ran leaves no report) and belongs to the expected suite;
+- every required suite collected at least one test;
+- no required suite has failures, errors or **skipped** tests (a skipped test proves nothing, e.g. idempotency without `--run-e2e`).
+
+Required suites: the three `sanity-*` suites in every build; in Pull Request builds also `smoke-source`, `smoke-target`, `regression-source`, `regression-target` and `regression-idempotency`. The check is `tests/support/quality_gate.py` (standard library only; prints counts and suite names, never test output):
+
+```text
+set PYTHONPATH=tests
+python -m support.quality_gate reports sanity-api sanity-unit sanity-offline-data
+```
+
+Because the gate fails the build, `continuous-integration/jenkins/pr-merge` cannot be SUCCESS unless Sanity, Smoke, Pre-Merge Regression and the gate itself passed.
+
+### Manual Deployment Approval
+
+- Only a `main` build (never a Pull Request or feature branch) whose CI part passed reaches it; the stage condition and a second scripted guard both enforce this.
+- Uses the standard Jenkins `input` step with a **30-minute** timeout. The stage has no agent, so no executor is held while waiting.
+- Approver restriction (optional, configured in Jenkins, never in this repository): the global environment variable `DEPLOY_APPROVERS` (Manage Jenkins -> System -> Global properties -> Environment variables) with comma-separated Jenkins user IDs and/or group names. When it is not set, the log prints a warning and any user with Build permission on the job (and administrators) can approve.
+- Rejected, aborted or timed out: the build ends **ABORTED**, its description reads `NOT DEPLOYED: ...`, the log prints `DEPLOYMENT DID NOT OCCUR`, and Fake Deployment does not run.
+- Builds of `main` are serialized: a newer merge waits until the pending approval is decided or times out.
+
+### Fake Deployment
+
+A laboratory simulation, separate from pytest and from every test: no external system is contacted and nothing is installed. After approval it prints and archives `deployment/deployment-record.txt` (Jenkins build artifact) and sets the build description to `DEPLOYED (simulated): <sha> approved by <user>`. The record contains:
+
+- commit SHA and branch
+- Jenkins job, build number and build URL
+- the gate that qualified the commit: Pre-Merge Regression and Required Quality Gate of the merged Pull Request (PR number read from the merge commit subject; enforced through the required `pr-merge` status), plus this build's Sanity and Quality Gate
+- approver and deployment time (UTC)
+
+No credential is bound in the approval or deployment stages, and no environment is printed.
+
+### Jenkins and GitHub configuration (manual, not changed by this repository)
+
+| Where | Setting | Why |
+|---|---|---|
+| GitHub branch protection on `main` | Keep `continuous-integration/jenkins/pr-merge` as a required status check | It now reports Sanity + Smoke + Pre-Merge Regression + Quality Gate |
+| GitHub branch protection on `main` | Recommended: "Require branches to be up to date before merging" | The tested merge result then equals what lands on `main` |
+| Jenkins Multibranch (GitHub Branch Source) | Keep "Exclude branches that are also filed as PRs"; discover Pull Requests by merging with the target branch only | One build per change; no duplicate `pr-head` build |
+| Jenkins global properties | Optional `DEPLOY_APPROVERS` | Restricts who may approve deployments |
+| Windows agent | Keep a single executor | Build isolation (below) |
+
+### Build isolation
+
+All Pull Request builds share one PostgreSQL database; feature-branch and `main` builds never touch it. Load freshness and idempotency assume that no other build loads it while they run. Assumptions (not enforced by this repository): the Multibranch configuration excludes branch builds for branches that are also Pull Requests, and builds are serialized on the Windows agent (a single executor). Two concurrent Pull Request builds could otherwise interleave their Loads. If that becomes possible, add a Jenkins lock around the SMOKE and PRE-MERGE REGRESSION stages.
 
 ---
 
@@ -409,7 +499,7 @@ CI database configuration (no values are stored in the repository):
 | Credential `postgres-etl-api`, kind **Username with password** | Manage Jenkins -> Credentials | `DB_USER`, `DB_PASSWORD` |
 | Environment variables `DB_HOST`, `DB_PORT`, `DB_NAME` | Windows agent node -> Configure -> Node Properties -> Environment variables | connection target as seen from that agent (not secret) |
 
-The credential is bound with `withCredentials` only around the steps that connect to PostgreSQL (Environment Validation, Load, PostgreSQL Validation, E2E), so Jenkins masks both values in the log. The offline stages never receive it.
+The credential is bound with `withCredentials` only around the steps that connect to PostgreSQL (Environment Validation, Load, Target Smoke, Target Quality & Reconciliation, Idempotency), so Jenkins masks both values in the log. Sanity, Source Smoke, Source Quality, the approval and the deployment stages never receive it.
 
 ---
 
@@ -479,40 +569,38 @@ feature/jenkins-ci
   Pull Request
         |
         v
-     Jenkins
+     Jenkins (PR-<n>)
         |
         v
- Ruff + Offline Tests
- + Integration / E2E
+ Sanity -> Smoke -> Pre-Merge Regression
         |
         v
-   Quality Gate
+ Required Quality Gate (continuous-integration/jenkins/pr-merge)
         |
         v
-       main
+       main -> Manual Deployment Approval -> Fake Deployment
 ```
 
 ---
 
 ## CI/CD
 
-The project uses Jenkins for Continuous Integration.
+The project uses Jenkins for Continuous Integration and a simulated, manually approved Continuous Delivery step.
 
 Changes pushed to the development branch are automatically detected by Jenkins through SCM polling.
 
-The CI workflow is designed to:
+The CI/CD workflow is designed to:
 
 1. Detect source-control changes.
 2. Retrieve the latest code from GitHub.
-3. Read the version-controlled `Jenkinsfile`.
+3. Read the version-controlled `Jenkinsfile` and select the lifecycle from the build event (feature branch, Pull Request or `main`).
 4. Create a fresh Python environment and install the pinned dependencies.
-5. Run Ruff.
-6. Execute the 92 offline tests (API Client, Unit, Offline Data Quality).
-7. Run the real Integration / E2E layer: live API tests, the real ETL into PostgreSQL, database validation and idempotency.
-8. Publish JUnit results and report the result to GitHub Checks.
-9. Mark the pipeline as successful only when all validation steps pass.
+5. Run Sanity (Ruff + 74 offline tests) in every build.
+6. In Pull Request builds, run Smoke (one real ETL into PostgreSQL + 31 critical-path checks) and Pre-Merge Regression (46 deep checks, including an ETL re-run for idempotency).
+7. Run the Required Quality Gate, publish JUnit results and report the result to GitHub.
+8. On `main`, wait for manual deployment approval and run the Fake Deployment.
 
-The pipeline therefore acts as a **Quality Gate** before changes are considered ready for integration into the `main` branch.
+The Pull Request build therefore acts as the **Quality Gate** before changes are integrated into the `main` branch.
 
 ---
 
@@ -552,45 +640,48 @@ In a remotely accessible Jenkins environment, this workflow could be evolved to 
 
 ## Scheduled Execution
 
-The `Jenkinsfile` is change-driven: every build runs the real ETL once stage by stage and twice more inside the E2E suite, against the CI database.
-
-A time-based trigger for batch ETL processing (simulating a scheduled Data Warehouse load) is not configured.
+No time-based trigger is configured yet. The complete regression, including the ETL re-run for idempotency, runs in every Pull Request build.
 
 ---
 
 ## Pipeline Quality Gate
 
-The offline test suite acts as a Quality Gate for every change.
-
-Expected behavior:
+Expected behavior of a Pull Request build (see [Required Quality Gate](#required-quality-gate)):
 
 ```text
-Ruff
+Sanity (Ruff + offline tests)
   |
   v
-Offline Tests (API Client, Unit, Offline Data Quality)
+Smoke (one real ETL + critical-path checks)
   |
   v
-Real Integration / E2E (live API, ETL, PostgreSQL, idempotency)
+Pre-Merge Regression (deep reconciliation + idempotency)
   |
-  +---- All tests passed ------------------> Pipeline SUCCESS
+  v
+Required Quality Gate
   |
-  +---- CI database config missing --------> Pipeline UNSTABLE (E2E explicitly skipped)
+  +---- every required stage passed and every
+  |     required suite ran completely ---------> SUCCESS -> pr-merge green -> merge allowed
   |
-  +---- Any failure -----------------------> Pipeline FAILURE
+  +---- any failure, missing/empty suite,
+        skipped test or missing DB config -----> FAILURE -> pr-merge red  -> merge blocked
 ```
 
-A successfully validated CI execution reports:
+A successful Pull Request build reports:
 
 ```text
-API Client:            11 passed
-Unit:                  43 passed
-Offline Data Quality:  38 passed
-Live DummyJSON:        21 passed
-PostgreSQL Validation: 28 passed
-E2E + Idempotency:     65 passed
-
-Offline quality gate and real Integration / E2E passed.
+Pipeline gate: PRE_MERGE
+REQUIRED QUALITY GATE
+suite                     tests  failed  errors  skipped  verdict
+sanity-api                    9       0       0        0  PASS
+sanity-unit                  52       0       0        0  PASS
+sanity-offline-data          13       0       0        0  PASS
+smoke-source                  7       0       0        0  PASS
+smoke-target                 24       0       0        0  PASS
+regression-source             8       0       0        0  PASS
+regression-target            29       0       0        0  PASS
+regression-idempotency        9       0       0        0  PASS
+Quality Gate PASSED: 8 required suites complete
 ```
 
 ---
@@ -679,9 +770,11 @@ The current implementation supports:
 - [x] PostgreSQL loading
 - [x] Source-to-target reconciliation
 - [x] Automated Data Quality testing
-- [x] 206-test regression suite (87 data quality + 54 unit + 65 E2E)
-- [x] Jenkins offline quality gate (Ruff + 92 offline tests)
-- [x] Real Integration / E2E layer in the same Jenkins pipeline (live API, ETL, PostgreSQL, idempotency)
+- [x] 151-test risk-based suite (independent oracles, boundary reconciliation, control totals)
+- [x] Sanity gate on every build (Ruff + 74 offline tests)
+- [x] Event-based lifecycle in one Jenkinsfile: Sanity (push), Smoke + Pre-Merge Regression (Pull Request), Required Quality Gate
+- [x] Manual Deployment Approval and Fake Deployment from `main` (simulated CD)
+- [x] Load freshness and UPSERT contract guards
 - [x] Versioned test snapshot separated from runtime ETL artifacts
 - [x] JUnit test reports in Jenkins
 - [x] Jenkinsfile stored in source control

@@ -120,6 +120,7 @@ def test_database_settings_report_missing_variables(synthetic_db_env, monkeypatc
 
 
 # Validate that connection details never appear in repr/str
+@pytest.mark.regression
 def test_database_settings_repr_hides_connection_details(synthetic_db_env):
     database = synthetic_db_env.database()
 
@@ -146,6 +147,7 @@ def test_get_connection_uses_settings(fake_connect):
 
 
 # Validate that read_only=True enforces a read-only session
+@pytest.mark.regression
 def test_get_connection_read_only(fake_connect):
     connection_module.get_connection(read_only=True)
 
@@ -153,6 +155,7 @@ def test_get_connection_read_only(fake_connect):
 
 
 # Validate that connection failures do not expose driver details
+@pytest.mark.regression
 def test_connection_error_is_sanitized(monkeypatch, synthetic_db_env):
     def failing_connect(**kwargs):
         raise psycopg2.OperationalError(
@@ -184,6 +187,7 @@ def test_transaction_commits_and_closes(fake_connect):
 
 
 # Validate rollback, close and re-raise on error
+@pytest.mark.regression
 def test_transaction_rolls_back_on_error(fake_connect):
     with pytest.raises(RuntimeError):
         with connection_module.transaction():
@@ -208,6 +212,7 @@ def test_transaction_rollback_failure_keeps_original_error(monkeypatch, syntheti
 
 
 # Validate that execute_for_each runs one statement per row in one transaction
+@pytest.mark.regression
 def test_execute_for_each_counts_rows(fake_connect):
     executed = connection_module.execute_for_each("SELECT %s", [(1,), (2,), (3,)])
 
@@ -260,6 +265,7 @@ def test_cart_item_rows_positions():
          [(1, 1, 7, "n", 1, 2, 2, 0, 2)]),
     ]
 )
+@pytest.mark.regression
 def test_loader_delegates_to_execute_for_each(
     monkeypatch, tmp_path, module, loader, statement, file_name, records, expected_rows
 ):

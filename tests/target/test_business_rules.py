@@ -5,8 +5,9 @@ Each rule is a query returning one row per violating record; the test
 reports the violation count and sample business keys. Rules are recomputed
 from the stored values independently of the transform code.
 
-The rules the ETL itself implements (derived columns) are smoke, the PR
-critical path; the others run in the pre-merge regression.
+The rules the ETL itself implements (derived columns) are PR Regression
+(merge-blocking); the others validate upstream data and run in the local
+Full Regression.
 """
 
 import pytest
@@ -79,22 +80,22 @@ BUSINESS_RULES = [
 ]
 
 
-# Derived columns computed by the transform: smoke (PR critical path)
-SMOKE_RULES = {
+# Derived columns computed by the transform: PR Regression (merge-blocking)
+MERGE_BLOCKING_RULES = {
     "users.full_name = first_name + ' ' + last_name",
     "products.product_name ends with exactly one ' - RP'",
     "products.discounted_price = ROUND(price * (1 - discount / 100), 2)",
 }
 
-# A renamed rule must never silently drop out of smoke
-assert SMOKE_RULES <= {r[0] for r in BUSINESS_RULES}, "SMOKE_RULES names an unknown rule"
+# A renamed rule must never silently drop out of the PR gate
+assert MERGE_BLOCKING_RULES <= {r[0] for r in BUSINESS_RULES}, "MERGE_BLOCKING_RULES names an unknown rule"
 
 
 # Validate each business rule over the complete target table
 @pytest.mark.parametrize(
     "rule_id, key_sql, from_sql",
     [
-        pytest.param(*rule, id=rule[0], marks=[pytest.mark.smoke] if rule[0] in SMOKE_RULES else [])
+        pytest.param(*rule, id=rule[0], marks=[pytest.mark.regression] if rule[0] in MERGE_BLOCKING_RULES else [])
         for rule in BUSINESS_RULES
     ]
 )

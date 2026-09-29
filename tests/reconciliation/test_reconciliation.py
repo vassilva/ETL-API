@@ -11,8 +11,10 @@ Oracles (never the production transform/load code):
 - Source -> Database     the declarative ETL contract applied to the live API
                          (independent end-to-end check)
 
-Completeness and Processed -> Database are smoke (the PR critical path); the
-rest runs in the pre-merge regression.
+PR Regression (merge-blocking): completeness, Source -> Database and the
+control totals. The intermediate boundaries (Source -> RAW, RAW -> Processed,
+Processed -> Database) and drift add diagnostics and upstream monitoring and
+run only in the local Full Regression.
 """
 
 from decimal import Decimal
@@ -60,7 +62,7 @@ def _rules(entity, default="exact"):
     return rules
 
 
-# Completeness (smoke)
+# Completeness (PR Regression)
 
 def _key_problems(keys, reference):
     index, duplicates = index_unique(keys, lambda key: key)
@@ -80,7 +82,7 @@ def _key_problems(keys, reference):
 
 # Validate record counts and key sets at every boundary against the live
 # source, reporting the first boundary where they diverge
-@pytest.mark.smoke
+@pytest.mark.regression
 @pytest.mark.live_api
 @pytest.mark.database
 @pytest.mark.artifacts
@@ -121,11 +123,10 @@ def test_completeness(source_payloads, runtime_raw, runtime_processed, db_connec
     )
 
 
-# Processed -> Database (smoke): Load boundary
+# Processed -> Database (local Full): Load boundary
 
 # Validate every business column of every row loaded, with key sets compared
 # in both directions (missing, unexpected and duplicate keys)
-@pytest.mark.smoke
 @pytest.mark.load
 @pytest.mark.database
 @pytest.mark.artifacts
@@ -145,7 +146,7 @@ def test_processed_to_database(runtime_processed, db_connection, entity):
     assert_reconciled("Processed -> Database", entity, problems)
 
 
-# Source -> RAW (regression): Extract boundary
+# Source -> RAW (local Full): Extract boundary
 
 def _flatten(value, prefix=""):
     """{path: leaf value}; list items get their index, e.g. reviews[0].rating."""
@@ -201,7 +202,7 @@ def test_source_to_raw(source_payloads, runtime_raw, resource):
     assert_reconciled("Source -> RAW", resource, problems)
 
 
-# RAW -> Processed (regression): Transform boundary
+# RAW -> Processed (local Full): Transform boundary
 
 # Validate the processed output of this run against the ETL contract applied
 # to the RAW input of this run (independent of the transform code)
@@ -223,13 +224,14 @@ def test_raw_to_processed(runtime_raw, runtime_processed, entity):
     assert_reconciled("RAW -> Processed", entity, problems)
 
 
-# Source -> Database (regression): independent end-to-end check
+# Source -> Database (PR Regression): independent end-to-end check
 
 # Validate every business column of the target against the live source via
 # the declarative contract (copies and business rules restated independently)
 @pytest.mark.live_api
 @pytest.mark.database
 @pytest.mark.parametrize("entity", ENTITIES)
+@pytest.mark.regression
 def test_source_to_database(source_payloads, db_connection, entity):
     problems = reconcile(
         expected_rows(entity, source_payloads),
@@ -244,7 +246,7 @@ def test_source_to_database(source_payloads, db_connection, entity):
     assert_reconciled("Source -> Database", entity, problems)
 
 
-# Control totals (regression)
+# Control totals (PR Regression)
 
 # (measure, entity, source field, target column). Each total is computed from
 # its own dataset in this run, per record at the target's stored precision;
@@ -261,6 +263,7 @@ MEASURES = [
 @pytest.mark.database
 @pytest.mark.artifacts
 @pytest.mark.parametrize("measure, entity, source_field, column", MEASURES, ids=[m[0] for m in MEASURES])
+@pytest.mark.regression
 def test_measure_control_total(
     source_payloads, runtime_raw, runtime_processed, db_connection, measure, entity, source_field, column
 ):
@@ -289,7 +292,7 @@ def test_measure_control_total(
     )
 
 
-# Business-data drift (regression)
+# Business-data drift (local Full: upstream monitoring)
 
 # Validate that the data processed in this run equals the reviewed, committed
 # snapshot the offline tests run against. A real upstream change fails here

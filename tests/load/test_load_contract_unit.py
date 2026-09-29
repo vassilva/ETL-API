@@ -27,7 +27,7 @@ import load.users
 from support.etl_contract import BUSINESS_KEYS, UNIQUE_KEYS, business_columns
 
 
-pytestmark = [pytest.mark.load, pytest.mark.unit]
+pytestmark = [pytest.mark.load, pytest.mark.unit, pytest.mark.smoke]
 
 
 UPSERT_STATEMENTS = {

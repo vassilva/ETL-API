@@ -1,5 +1,11 @@
 """
-Target integrity after the Load (smoke: the PR critical path).
+Target integrity after the Load.
+
+Load freshness is PR Regression (merge-blocking: without it every database
+check can pass on old rows). Uniqueness, referential integrity and
+mandatory fields mostly monitor upstream data (code-induced defects are
+caught by Source -> Database and completeness) and run in the local Full
+Regression.
 
 Set-based checks evaluated inside PostgreSQL; only violation counts and
 sample business keys leave the database, never personal values.
@@ -23,7 +29,7 @@ from support.reconciliation import sample
 from utils.json_files import read_json
 
 
-pytestmark = [pytest.mark.load, pytest.mark.database, pytest.mark.smoke]
+pytestmark = [pytest.mark.load, pytest.mark.database]
 
 
 # (case id, table, group expression, "value present" condition, sample key expression)
@@ -102,6 +108,7 @@ def test_target_mandatory_fields(db_connection, entity):
 # captured just before the Load. Assumes no other process loads the same
 # database between the baseline and this check (build isolation).
 @pytest.mark.parametrize("entity", ENTITIES)
+@pytest.mark.regression
 def test_load_freshness(db_connection, entity):
     if not BASELINE_FILE.exists():
         pytest.fail(

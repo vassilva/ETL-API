@@ -1,18 +1,26 @@
 """
 Shared fixtures and hooks for the whole test suite.
 
-Markers are declared per module/test. Three markers are derived here so they
-can never drift out of sync, and every test belongs to exactly one gate:
+Markers are declared per module/test. integration is derived here so it can
+never drift out of sync: every test marked live_api, database or artifacts
+(it needs an external system or the runtime output of a real ETL run), so the
+offline selections can never pick it up.
 
-- integration: every test marked live_api, database or artifacts (it needs
-  an external system or the runtime output of a real ETL run), so the
-  offline selections can never pick it up
-- sanity (push gate): every test that is not integration
-- regression (pre-merge gate): every integration test not marked smoke
+Execution profiles (see README "CI/CD Lifecycle"):
 
-smoke (the PR critical path) is the only gate marker applied by hand, and
-only integration tests may carry it. sanity and regression must never be
-applied by hand.
+- smoke       Jenkins push builds (the PR build re-runs it on the merge
+              candidate). Offline tests only.
+- regression  Jenkins PR builds, in addition to every smoke test.
+- neither     LOCAL Full Regression only. Full is every test (151) and
+              never runs in Jenkins.
+
+The exact tests of each Jenkins profile are pinned in support/ci_profiles.py;
+the Required Quality Gate fails when the executed tests differ from it, so a
+marker added or removed by accident cannot silently change a gate.
+
+Invalid combinations stop the collection: smoke on an integration test,
+smoke together with regression, and smoke/regression on e2e tests (the
+idempotency re-run is local only).
 
 e2e tests re-run the ETL (they write data/ and PostgreSQL), so they are
 skipped unless the run explicitly opts in with --run-e2e.
@@ -39,8 +47,6 @@ SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 EXTERNAL_DEPENDENCY_MARKERS = ("live_api", "database", "artifacts")
 
-DERIVED_GATE_MARKERS = ("sanity", "regression")
-
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -58,27 +64,21 @@ def pytest_collection_modifyitems(config, items):
     skip_e2e = pytest.mark.skip(reason="re-runs the ETL (writes data/ and PostgreSQL); use --run-e2e")
 
     for item in items:
-        if manual := [name for name in DERIVED_GATE_MARKERS if item.get_closest_marker(name)]:
-            raise pytest.UsageError(
-                f"{item.nodeid}: gate marker(s) {manual} are derived automatically; remove them"
-            )
-
         integration = any(item.get_closest_marker(name) for name in EXTERNAL_DEPENDENCY_MARKERS)
         smoke = item.get_closest_marker("smoke") is not None
+        regression = item.get_closest_marker("regression") is not None
 
-        if smoke and not integration:
-            raise pytest.UsageError(
-                f"{item.nodeid}: smoke is the PR critical path on the real ETL run; "
-                f"offline tests already run in sanity"
-            )
+        if smoke and integration:
+            raise pytest.UsageError(f"{item.nodeid}: smoke tests must be offline (no live_api, database or artifacts)")
+
+        if smoke and regression:
+            raise pytest.UsageError(f"{item.nodeid}: smoke and regression are exclusive (the PR build already runs smoke)")
+
+        if (smoke or regression) and item.get_closest_marker("e2e"):
+            raise pytest.UsageError(f"{item.nodeid}: e2e tests (ETL re-run) belong to the local Full Regression only")
 
         if integration:
             item.add_marker(pytest.mark.integration)
-
-        if not integration:
-            item.add_marker(pytest.mark.sanity)
-        elif not smoke:
-            item.add_marker(pytest.mark.regression)
 
         if item.get_closest_marker("e2e") and not run_e2e:
             item.add_marker(skip_e2e)

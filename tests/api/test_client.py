@@ -58,6 +58,7 @@ def make_client(session):
 
 
 # Validate that get_resource requests the complete collection with a timeout
+@pytest.mark.smoke
 def test_get_resource_requests_full_collection():
     session = FakeSession(FakeResponse(payload={"users": [], "total": 0}))
 
@@ -73,6 +74,7 @@ def test_get_resource_requests_full_collection():
 
 # Validate that the client falls back to centralized settings. Distinct,
 # injected values prove they come from the settings, not from a default.
+@pytest.mark.regression
 def test_client_uses_centralized_settings(monkeypatch):
     settings = Settings(
         api_base_url="https://settings.example.test/",
@@ -99,6 +101,7 @@ def test_client_sets_accept_json_header():
 # Validate that HTTP errors expose the status code but never the response body
 # (one client error and one server error: both take the same code path)
 @pytest.mark.parametrize("status_code", [401, 503])
+@pytest.mark.regression
 def test_http_error_hides_response_body(status_code):
     session = FakeSession(FakeResponse(status_code=status_code, text=SYNTHETIC_BODY))
 
@@ -112,6 +115,7 @@ def test_http_error_hides_response_body(status_code):
 
 
 # Validate that timeouts raise a safe ApiError without the original exception chain
+@pytest.mark.regression
 def test_timeout_raises_safe_error():
     session = FakeSession(error=requests.Timeout("https://api.example.test/users"))
 
@@ -124,6 +128,7 @@ def test_timeout_raises_safe_error():
 
 
 # Validate that connection errors do not leak URLs or embedded credentials
+@pytest.mark.regression
 def test_connection_error_hides_url():
     session = FakeSession(
         error=requests.ConnectionError("https://synthetic-user:synthetic-pass@host")
@@ -140,6 +145,7 @@ def test_connection_error_hides_url():
 
 
 # Validate that a non-JSON body raises a safe ApiError
+@pytest.mark.regression
 def test_invalid_json_raises_safe_error():
     session = FakeSession(FakeResponse(payload=None, text=SYNTHETIC_BODY))
 

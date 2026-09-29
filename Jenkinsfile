@@ -3,24 +3,28 @@
 // The build event alone selects the lifecycle; there are no build parameters
 // (see README "CI/CD Lifecycle"):
 //
-//   Feature branch push (no PR)  SANITY -> Required Quality Gate. No deployment.
-//   Pull Request (PR-N job)      SANITY -> SMOKE -> PRE-MERGE REGRESSION
-//                                -> Required Quality Gate. No deployment.
+//   Feature branch push (no PR)  Ruff -> Smoke (18, offline) -> Push Gate.
+//                                No ETL, no API, no database, no deployment.
+//   Pull Request (PR-N job)      Ruff -> PR Offline (37) -> Environment
+//                                Validation -> Source Critical (3) -> Extract
+//                                -> Transform -> Load -> Target and
+//                                Reconciliation (17) -> PR Gate. One ETL run.
 //                                This build is the required GitHub status
 //                                continuous-integration/jenkins/pr-merge.
-//   main                         SANITY -> Required Quality Gate
-//                                -> Manual Deployment Approval -> Fake Deployment
+//   main                         Main Evidence: the merged tree is proven
+//                                identical to the PR-validated tree -> 0 tests;
+//                                otherwise (unknown = fallback) Ruff + Smoke.
+//                                -> Main Gate -> Manual Approval -> Fake Deploy.
 //
-// Jenkins (GitHub Branch Source) has a single Pull Request event, so SMOKE
-// and PRE-MERGE REGRESSION are two gates of the same PR build: pr-merge is the
-// result of the whole build and can never be SUCCESS after Smoke alone. The
-// Required Quality Gate fails the build when a required stage failed or a
-// required suite is missing, collected zero tests or skipped tests.
+// The Full Regression (all 151 tests) is LOCAL ONLY: no Jenkins path runs it.
 //
-// Deployment is simulated and never automatic: main only, after the Quality
-// Gate and after explicit approval (Jenkins input, 30 minutes). No executor is
-// held while waiting. Optional approver restriction: DEPLOY_APPROVERS (see
-// README "Manual Deployment Approval").
+// Fail fast: every stage requires all earlier stages to have succeeded; the
+// Required Quality Gate always runs and fails the build unless every required
+// stage completed and every required test (exact profile in
+// tests/support/ci_profiles.py) passed. Required failures end as FAILURE,
+// never UNSTABLE or SUCCESS; timeouts and manual aborts end as ABORTED. A
+// build that is not SUCCESS never reports a successful pr-merge status and
+// never deploys.
 //
 // Database configuration (values never live in this file):
 //   DB_HOST, DB_PORT, DB_NAME  environment variables of the Windows agent
@@ -30,8 +34,8 @@
 //                              steps that connect to PostgreSQL
 //
 // Build isolation: only Pull Request builds touch the shared PostgreSQL
-// database. Load freshness and idempotency assume no other build loads it at
-// the same time; see README "Build isolation".
+// database. Load freshness assumes no other build loads it at the same time;
+// see README "Build isolation".
 
 pipeline {
     // Agents are allocated per stage, so waiting for deployment approval
@@ -66,7 +70,7 @@ pipeline {
                         script {
                             env.COMMIT_SHA = bat(returnStdout: true, script: '@git rev-parse HEAD').trim()
 
-                            // Only main uses it: the PR whose pr-merge gate qualified the merge
+                            // main: the PR whose pr-merge gate qualified the merge
                             def subject = bat(returnStdout: true, script: '@git log -1 --format=%%s').trim()
                             env.QUALIFYING_PR = pullRequestNumber(subject)
 
@@ -85,25 +89,32 @@ Commit:       ${env.COMMIT_SHA}
                 stage('Pipeline Gate') {
                     steps {
                         script {
-                            def sanitySuites = 'sanity-api sanity-unit sanity-offline-data'
-
                             if (env.CHANGE_ID) {
-                                env.PIPELINE_GATE = 'PRE_MERGE'
-                                env.GATE_FLOW = 'SANITY -> SMOKE -> PRE-MERGE REGRESSION -> REQUIRED QUALITY GATE (GitHub status continuous-integration/jenkins/pr-merge). No deployment.'
-                                env.REQUIRED_SUITES = "${sanitySuites} smoke-source smoke-target regression-source regression-target regression-idempotency"
+                                env.PIPELINE_GATE = 'PR'
+                                env.GATE_FLOW = 'Ruff -> PR Offline -> Environment Validation -> Source Critical -> Extract -> Transform -> Load -> Target and Reconciliation -> PR Gate (GitHub status continuous-integration/jenkins/pr-merge). No deployment.'
                             } else if (env.BRANCH_NAME == 'main') {
                                 env.PIPELINE_GATE = 'MAIN'
-                                env.GATE_FLOW = 'SANITY -> REQUIRED QUALITY GATE -> MANUAL DEPLOYMENT APPROVAL -> FAKE DEPLOYMENT'
-                                env.REQUIRED_SUITES = sanitySuites
+                                env.GATE_FLOW = 'Main Evidence (tree identity; otherwise Ruff + Smoke) -> Main Gate -> Manual Deployment Approval -> Fake Deployment'
                             } else {
-                                env.PIPELINE_GATE = 'SANITY'
-                                env.GATE_FLOW = 'SANITY -> REQUIRED QUALITY GATE. No deployment.'
-                                env.REQUIRED_SUITES = sanitySuites
+                                env.PIPELINE_GATE = 'PUSH'
+                                env.GATE_FLOW = 'Ruff -> Smoke -> Push Gate. No deployment.'
                             }
 
                             echo "Pipeline gate: ${env.PIPELINE_GATE}"
                             echo "Lifecycle: ${env.GATE_FLOW}"
-                            echo "Required suites: ${env.REQUIRED_SUITES}"
+                        }
+                    }
+                }
+
+                // main only: is this exactly the tree the PR build validated?
+                stage('Main Evidence') {
+                    when { expression { env.PIPELINE_GATE == 'MAIN' } }
+                    steps {
+                        script {
+                            def evidence = mainEvidence()
+                            env.MAIN_TEST_MODE = evidence.mode
+                            echo "MAIN_TEST_MODE = ${evidence.mode}: ${evidence.reason}"
+                            markCompleted()
                         }
                     }
                 }
@@ -119,12 +130,27 @@ Commit:       ${env.COMMIT_SHA}
                         )
                         '''
 
+                        // Runtime artifacts must be produced by THIS build: stale
+                        // RAW/Processed files or a stale Load baseline could make
+                        // the checks pass on old data
+                        bat '''
+                        @echo off
+                        for %%D in (data\\raw data\\processed data\\state) do (
+                            if exist %%D (
+                                echo ERROR: stale runtime directory %%D exists before the build.
+                                exit /b 1
+                            )
+                        )
+                        echo No stale runtime artifacts.
+                        '''
+
                         // Remove stale JUnit reports (git-ignored, never tracked)
                         bat 'if exist reports\\*.xml del /q reports\\*.xml'
                     }
                 }
 
                 stage('Setup Python') {
+                    when { expression { needsPython() } }
                     steps {
                         bat 'python --version'
                         bat 'if exist .venv rmdir /s /q .venv'
@@ -133,216 +159,181 @@ Commit:       ${env.COMMIT_SHA}
                 }
 
                 stage('Install Dependencies') {
+                    when { expression { needsPython() } }
                     steps {
                         bat '%VENV_PY% -m pip install -r requirements-dev.txt'
                         bat '%VENV_PY% -m pip check'
                     }
                 }
 
-                // Push gate: structural health, offline only (no network,
-                // database or runtime artifacts; no credentials)
-                stage('SANITY') {
+                stage('Ruff') {
+                    when { expression { needsPython() && ciHealthy() } }
+                    steps {
+                        script {
+                            runGuarded { bat '%VENV_PY% -m ruff check src tests --no-cache' }
+                        }
+                    }
+                }
+
+                // Push (and main fallback): fundamental offline code contracts
+                stage('Smoke') {
+                    when { expression { (env.PIPELINE_GATE == 'PUSH' || env.MAIN_TEST_MODE == 'SMOKE_FALLBACK') && ciHealthy() } }
                     environment {
                         // Tripwire: an accidental API request fails locally
-                        // instead of reaching the real external API.
                         API_BASE_URL = 'http://127.0.0.1:9'
                     }
-
-                    stages {
-                        stage('Ruff') {
-                            steps {
-                                script {
-                                    def passed = runGuarded { bat '%VENV_PY% -m ruff check src tests --no-cache' }
-                                    env.RUFF_PASSED = passed ? 'true' : 'false'
-                                }
-                            }
-                        }
-
-                        // Three disjoint offline selections; after Ruff passed,
-                        // each always runs and publishes its results.
-                        stage('API Client') {
-                            when { environment name: 'RUFF_PASSED', value: 'true' }
-                            steps {
-                                script { runPytest('sanity and api', 'sanity-api') }
-                            }
-                        }
-
-                        stage('Unit') {
-                            when { environment name: 'RUFF_PASSED', value: 'true' }
-                            steps {
-                                script { runPytest('sanity and unit and not api', 'sanity-unit') }
-                            }
-                        }
-
-                        stage('Offline Data Quality') {
-                            when { environment name: 'RUFF_PASSED', value: 'true' }
-                            steps {
-                                script { runPytest('sanity and not unit', 'sanity-offline-data') }
-                            }
-                        }
+                    steps {
+                        script { runPytest('smoke', 'smoke') }
                     }
                 }
 
-                // PR gate: the critical ETL path on one real run. Runs only
-                // when Sanity passed; every step requires the previous ones.
-                stage('SMOKE') {
-                    when { expression { env.PIPELINE_GATE == 'PRE_MERGE' && ciHealthy() } }
-
-                    stages {
-                        stage('Environment Validation') {
-                            steps {
-                                script {
-                                    runGuarded {
-                                        // Only variable names are printed, never values
-                                        def agentSettingsMissing = bat(returnStatus: true, script: '''
-                                            @echo off
-                                            set MISSING=
-                                            if not defined DB_HOST set MISSING=%MISSING% DB_HOST
-                                            if not defined DB_PORT set MISSING=%MISSING% DB_PORT
-                                            if not defined DB_NAME set MISSING=%MISSING% DB_NAME
-                                            if defined MISSING (
-                                                echo Missing agent environment variables:%MISSING%
-                                                exit /b 1
-                                            )
-                                            echo Agent environment variables DB_HOST, DB_PORT and DB_NAME are defined.
-                                        ''') != 0
-
-                                        def credentialFound = true
-                                        try {
-                                            withDatabaseCredentials {
-                                                echo "Jenkins credential '${env.DB_CREDENTIALS_ID}' is available."
-                                            }
-                                        } catch (InterruptedException interruption) {
-                                            throw interruption
-                                        } catch (lookupFailure) {
-                                            credentialFound = false
-                                            echo "Jenkins credential '${env.DB_CREDENTIALS_ID}' was not found or is not of type 'Username with password'."
-                                        }
-
-                                        // A required gate that cannot run is a failure, never a skip
-                                        if (agentSettingsMissing || !credentialFound) {
-                                            error('The CI database configuration is incomplete (see this log). A Pull Request cannot pass the required quality gate without PostgreSQL.')
-                                        }
-
-                                        // Configured but unreachable is a real failure.
-                                        // Read-only connection; the error message never
-                                        // contains connection details.
-                                        withDatabaseCredentials {
-                                            bat 'set PYTHONPATH=src&& %VENV_PY% -m database.connection'
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Source reachable, complete and loadable, before the ETL
-                        stage('Source Smoke') {
-                            when { expression { ciHealthy() } }
-                            steps {
-                                script { runPytest('smoke and live_api and not database and not artifacts', 'smoke-source') }
-                            }
-                        }
-
-                        // Extract -> Transform -> Load run the real pipeline once,
-                        // one stage at a time. A failure stops the remaining stages.
-                        stage('Extract') {
-                            when { expression { ciHealthy() } }
-                            steps {
-                                script { runGuarded { bat '%VENV_PY% src\\main.py --stage extract' } }
-                            }
-                        }
-
-                        stage('Transform') {
-                            when { expression { ciHealthy() } }
-                            steps {
-                                script { runGuarded { bat '%VENV_PY% src\\main.py --stage transform' } }
-                            }
-                        }
-
-                        stage('Load') {
-                            when { expression { ciHealthy() } }
-                            steps {
-                                script {
-                                    runGuarded {
-                                        withDatabaseCredentials {
-                                            // Row versions before the Load (read-only), so the
-                                            // smoke checks can prove this Load wrote every row
-                                            bat 'set PYTHONPATH=src;tests&& %VENV_PY% -m support.load_freshness'
-                                            bat '%VENV_PY% src\\main.py --stage load'
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        stage('Target Smoke') {
-                            when { expression { ciHealthy() } }
-                            steps {
-                                script {
-                                    withDatabaseCredentials { runPytest('smoke and (database or artifacts)', 'smoke-target') }
-                                }
-                            }
-                        }
+                // PR: Smoke re-run on the merge candidate + offline merge
+                // preconditions (defects the runtime checks cannot see)
+                stage('PR Offline') {
+                    when { expression { env.PIPELINE_GATE == 'PR' && ciHealthy() } }
+                    environment {
+                        API_BASE_URL = 'http://127.0.0.1:9'
+                    }
+                    steps {
+                        script { runPytest('(smoke or regression) and not integration', 'pr-offline') }
                     }
                 }
 
-                // Pre-merge gate: deep data quality and reconciliation on the
-                // same ETL run, then idempotency. Runs only when Smoke passed;
-                // after that each group always runs and publishes its results.
-                stage('PRE-MERGE REGRESSION') {
-                    when { expression { env.PIPELINE_GATE == 'PRE_MERGE' && ciHealthy() } }
+                stage('Environment Validation') {
+                    when { expression { env.PIPELINE_GATE == 'PR' && ciHealthy() } }
+                    steps {
+                        script {
+                            runGuarded {
+                                // Only variable names are printed, never values
+                                def agentSettingsMissing = bat(returnStatus: true, script: '''
+                                    @echo off
+                                    set MISSING=
+                                    if not defined DB_HOST set MISSING=%MISSING% DB_HOST
+                                    if not defined DB_PORT set MISSING=%MISSING% DB_PORT
+                                    if not defined DB_NAME set MISSING=%MISSING% DB_NAME
+                                    if defined MISSING (
+                                        echo Missing agent environment variables:%MISSING%
+                                        exit /b 1
+                                    )
+                                    echo Agent environment variables DB_HOST, DB_PORT and DB_NAME are defined.
+                                ''') != 0
 
-                    stages {
-                        stage('Source Quality') {
-                            steps {
-                                script { runPytest('regression and live_api and not database and not artifacts', 'regression-source') }
-                            }
-                        }
-
-                        stage('Target Quality & Reconciliation') {
-                            steps {
-                                script {
+                                def credentialFound = true
+                                try {
                                     withDatabaseCredentials {
-                                        runPytest('regression and (database or artifacts) and not e2e', 'regression-target')
+                                        echo "Jenkins credential '${env.DB_CREDENTIALS_ID}' is available."
                                     }
+                                } catch (InterruptedException interruption) {
+                                    throw interruption
+                                } catch (lookupFailure) {
+                                    credentialFound = false
+                                    echo "Jenkins credential '${env.DB_CREDENTIALS_ID}' was not found or is not of type 'Username with password'."
                                 }
-                            }
-                        }
 
-                        // Last: re-runs the ETL (writes data/ and PostgreSQL), so
-                        // every other check has already read this build's Load
-                        stage('Idempotency') {
-                            steps {
-                                script {
-                                    withDatabaseCredentials {
-                                        runPytest('regression and e2e', 'regression-idempotency', '--run-e2e')
-                                    }
+                                // A required gate that cannot run is a failure, never a skip
+                                if (agentSettingsMissing || !credentialFound) {
+                                    error('The CI database configuration is incomplete (see this log). A Pull Request cannot pass the required quality gate without PostgreSQL.')
+                                }
+
+                                // Configured but unreachable is a real failure.
+                                // Read-only connection; the error message never
+                                // contains connection details.
+                                withDatabaseCredentials {
+                                    bat 'set PYTHONPATH=src&& %VENV_PY% -m database.connection'
                                 }
                             }
                         }
                     }
                 }
 
-                // Always evaluated: the build (and therefore pr-merge) can only
-                // be SUCCESS when every required stage passed and every
-                // required suite really executed
+                // Merge-blocking source contract: the complete collection
+                stage('Source Critical') {
+                    when { expression { env.PIPELINE_GATE == 'PR' && ciHealthy() } }
+                    steps {
+                        script { runPytest('regression and live_api and not database and not artifacts', 'pr-source') }
+                    }
+                }
+
+                // Extract -> Transform -> Load run the real pipeline once. Each
+                // stage proves its artifacts were written by this run (the
+                // workspace started without runtime artifacts).
+                stage('Extract') {
+                    when { expression { env.PIPELINE_GATE == 'PR' && ciHealthy() } }
+                    steps {
+                        script {
+                            runGuarded {
+                                bat '%VENV_PY% src\\main.py --stage extract'
+                                requireArtifacts('raw')
+                            }
+                        }
+                    }
+                }
+
+                stage('Transform') {
+                    when { expression { env.PIPELINE_GATE == 'PR' && ciHealthy() } }
+                    steps {
+                        script {
+                            runGuarded {
+                                bat '%VENV_PY% src\\main.py --stage transform'
+                                requireArtifacts('processed')
+                            }
+                        }
+                    }
+                }
+
+                stage('Load') {
+                    when { expression { env.PIPELINE_GATE == 'PR' && ciHealthy() } }
+                    steps {
+                        script {
+                            runGuarded {
+                                withDatabaseCredentials {
+                                    // Row versions before the Load (read-only), so
+                                    // Load freshness can prove this Load wrote every row
+                                    bat 'set PYTHONPATH=src;tests&& %VENV_PY% -m support.load_freshness'
+                                    bat '%VENV_PY% src\\main.py --stage load'
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Freshness, completeness, Source -> Database, control totals
+                // and the critical business rules on this run's data
+                stage('Target and Reconciliation') {
+                    when { expression { env.PIPELINE_GATE == 'PR' && ciHealthy() } }
+                    steps {
+                        script {
+                            withDatabaseCredentials {
+                                runPytest('regression and (database or artifacts)', 'pr-target')
+                            }
+                        }
+                    }
+                }
+
+                // Always evaluated: the build (and therefore pr-merge and any
+                // deployment) can only succeed when every required stage
+                // completed and the exact required tests all passed
                 stage('Required Quality Gate') {
                     steps {
                         script {
-                            def reportsStatus = bat(
+                            def profile = gateProfile()
+
+                            // Standard-library only: runs without the venv (main evidence mode)
+                            def gateStatus = bat(
                                 returnStatus: true,
-                                script: "set PYTHONPATH=tests&& %VENV_PY% -m support.quality_gate reports ${env.REQUIRED_SUITES}"
+                                script: "set PYTHONPATH=tests&& python -m support.quality_gate --profile ${profile} --reports reports --completed-stages \"%COMPLETED_STAGES%\""
                             )
 
                             echo "Failed required stages: ${env.FAILED_STAGES ?: 'none'}"
 
-                            if (reportsStatus != 0 || !ciHealthy() || currentBuild.currentResult != 'SUCCESS') {
-                                currentBuild.description = "QUALITY GATE FAILED (${env.PIPELINE_GATE})"
-                                error("REQUIRED QUALITY GATE FAILED (${env.PIPELINE_GATE}): see the suite table and the failed stages above.")
+                            if (gateStatus != 0 || !ciHealthy() || currentBuild.currentResult != 'SUCCESS') {
+                                currentBuild.description = "QUALITY GATE FAILED (${profile})"
+                                error("REQUIRED QUALITY GATE FAILED (${profile}): see the gate report and the failed stages above.")
                             }
 
-                            currentBuild.description = "Quality Gate passed (${env.PIPELINE_GATE})"
-                            echo "REQUIRED QUALITY GATE PASSED (${env.PIPELINE_GATE})"
+                            env.QUALITY_GATE_PASSED = 'true'
+                            currentBuild.description = "Quality Gate passed (${profile})"
+                            echo "REQUIRED QUALITY GATE PASSED (${profile})"
                         }
                     }
                 }
@@ -365,6 +356,7 @@ Commit:       ${env.COMMIT_SHA}
                 allOf {
                     branch 'main'
                     not { changeRequest() }
+                    environment name: 'QUALITY_GATE_PASSED', value: 'true'
                     expression { currentBuild.currentResult == 'SUCCESS' }
                 }
             }
@@ -429,6 +421,7 @@ Result:  ABORTED - Fake Deployment was not executed
                 allOf {
                     branch 'main'
                     not { changeRequest() }
+                    environment name: 'QUALITY_GATE_PASSED', value: 'true'
                     environment name: 'DEPLOYMENT_APPROVED', value: 'true'
                 }
             }
@@ -443,8 +436,12 @@ Result:  ABORTED - Fake Deployment was not executed
                     ).trim()
 
                     def qualifiedBy = env.QUALIFYING_PR
-                        ? "PRE-MERGE REGRESSION + Required Quality Gate of PR #${env.QUALIFYING_PR}"
-                        : 'PRE-MERGE REGRESSION + Required Quality Gate of the merged PR (number not found in the merge commit subject)'
+                        ? "PR ETL Regression + PR Quality Gate of PR #${env.QUALIFYING_PR}"
+                        : 'PR ETL Regression + PR Quality Gate of the merged PR (number not found in the merge commit subject)'
+
+                    def mainValidation = env.MAIN_TEST_MODE == 'EVIDENCE_ONLY'
+                        ? 'Main Evidence: merged tree identical to the PR-validated tree (0 tests re-run)'
+                        : 'Main Evidence not provable: Ruff + Smoke fallback passed'
 
                     def record = """\
 ========================================
@@ -460,7 +457,7 @@ Build URL:           ${env.BUILD_URL ?: '(Jenkins URL not configured)'}
 Qualified by:        ${qualifiedBy}
                      (required GitHub status continuous-integration/jenkins/pr-merge,
                      enforced by branch protection on main)
-                     + MAIN SANITY + Required Quality Gate in build #${env.BUILD_NUMBER}
+Main validation:     ${mainValidation} + Main Gate in build #${env.BUILD_NUMBER}
 Approved by:         ${env.DEPLOY_APPROVER}
 Deployment time:     ${deployedAt}
 Result:              DEPLOYED (simulated)
@@ -487,7 +484,7 @@ Result:              DEPLOYED (simulated)
         success {
             script {
                 if (env.PIPELINE_GATE == 'MAIN') {
-                    echo "main: Sanity and Quality Gate passed; commit ${shortSha()} DEPLOYED (simulated) after approval by ${env.DEPLOY_APPROVER}."
+                    echo "main: Main Gate passed (${env.MAIN_TEST_MODE}); commit ${shortSha()} DEPLOYED (simulated) after approval by ${env.DEPLOY_APPROVER}."
                 } else {
                     echo "Pipeline gate ${env.PIPELINE_GATE}: all required validations passed. No deployment (only main can deploy)."
                 }
@@ -495,7 +492,7 @@ Result:              DEPLOYED (simulated)
         }
 
         failure {
-            echo "Pipeline gate ${env.PIPELINE_GATE}: FAILED. Check the Required Quality Gate table and the stage logs. No deployment occurred."
+            echo "Pipeline gate ${env.PIPELINE_GATE}: FAILED. Check the Required Quality Gate report and the stage logs. No deployment occurred."
         }
 
         aborted {
@@ -510,14 +507,14 @@ Result:              DEPLOYED (simulated)
     }
 }
 
-// Runs body and returns true when it succeeded. A failure records the stage
-// for the Required Quality Gate, marks the stage and the build FAILURE (the
-// original error is logged by catchError) and lets the pipeline reach the
-// gate. Aborts (timeout, manual abort) are never swallowed.
+// Runs body and returns true when it succeeded. Success records the stage as
+// completed evidence for the Required Quality Gate. A failure records the
+// stage as failed, marks the stage and the build FAILURE (the original error
+// is logged by catchError) and lets the pipeline reach the gate. Aborts
+// (timeout, manual abort) are never swallowed.
 def runGuarded(Closure body) {
     try {
         body()
-        return true
     } catch (InterruptedException interruption) {
         throw interruption
     } catch (failure) {
@@ -529,6 +526,13 @@ def runGuarded(Closure body) {
 
         return false
     }
+
+    markCompleted()
+    return true
+}
+
+def markCompleted() {
+    env.COMPLETED_STAGES = env.COMPLETED_STAGES ? "${env.COMPLETED_STAGES},${env.STAGE_NAME}" : env.STAGE_NAME
 }
 
 // True while no required stage of this build has failed
@@ -536,11 +540,81 @@ def ciHealthy() {
     return !env.FAILED_STAGES
 }
 
+// Every lifecycle except a proven main evidence build needs the venv
+def needsPython() {
+    return env.MAIN_TEST_MODE != 'EVIDENCE_ONLY'
+}
+
+def gateProfile() {
+    if (env.PIPELINE_GATE == 'PR') {
+        return 'pr'
+    }
+
+    if (env.PIPELINE_GATE == 'MAIN') {
+        return env.MAIN_TEST_MODE == 'EVIDENCE_ONLY' ? 'main-evidence' : 'main-fallback'
+    }
+
+    return 'push'
+}
+
 // Runs one pytest marker selection as its own JUnit suite (reports/<suite>.xml,
-// verified by the Required Quality Gate)
+// verified by the Required Quality Gate). No -x: every failure of the suite
+// is reported; the next stage is skipped by the fail-fast conditions.
 def runPytest(String markers, String suite, String extraArgs = '') {
     return runGuarded {
         bat "%VENV_PY% -m pytest -m \"${markers}\" ${extraArgs} %PYTEST_OPTS% -o junit_suite_name=${suite} --junitxml=reports\\${suite}.xml"
+    }
+}
+
+// Fails unless the stage wrote all three runtime artifacts in data\<kind>
+def requireArtifacts(String kind) {
+    bat """
+    @echo off
+    for %%R in (users products carts) do (
+        if not exist data\\${kind}\\%%R.json (
+            echo ERROR: data\\${kind}\\%%R.json was not written by this run.
+            exit /b 1
+        )
+    )
+    echo This run wrote data\\${kind}: users, products, carts.
+    """
+}
+
+// main: EVIDENCE_ONLY only when HEAD is a two-parent GitHub PR merge commit
+// whose tree is identical to its PR head tree (the tree the PR build
+// validated). Anything else, including any error, is SMOKE_FALLBACK:
+// unknown never counts as valid. Uses %T (tree hash) instead of HEAD^2
+// syntax, because ^ is the escape character of cmd.
+def mainEvidence() {
+    try {
+        def parents = bat(returnStdout: true, script: '@git rev-list --parents -n 1 HEAD').trim().tokenize(' ')
+
+        if (parents.size() != 3) {
+            return [mode: 'SMOKE_FALLBACK', reason: "HEAD is not a two-parent merge commit (${parents.size() - 1} parent(s))"]
+        }
+
+        if (!env.QUALIFYING_PR) {
+            return [mode: 'SMOKE_FALLBACK', reason: 'the merge commit subject names no GitHub pull request']
+        }
+
+        def prHead = parents[2]
+
+        if (!isSha(prHead)) {
+            return [mode: 'SMOKE_FALLBACK', reason: 'the PR head commit could not be identified']
+        }
+
+        def mergeTree = bat(returnStdout: true, script: '@git log -1 --format=%%T HEAD').trim()
+        def prTree = bat(returnStdout: true, script: "@git log -1 --format=%%T ${prHead}").trim()
+
+        if (!isSha(mergeTree) || mergeTree != prTree) {
+            return [mode: 'SMOKE_FALLBACK', reason: "merged tree ${mergeTree} differs from PR #${env.QUALIFYING_PR} head tree ${prTree}"]
+        }
+
+        return [mode: 'EVIDENCE_ONLY', reason: "merged tree ${mergeTree} == PR #${env.QUALIFYING_PR} head tree (validated by its pr-merge build)"]
+    } catch (InterruptedException interruption) {
+        throw interruption
+    } catch (evidenceError) {
+        return [mode: 'SMOKE_FALLBACK', reason: 'the evidence could not be determined']
     }
 }
 
@@ -559,8 +633,8 @@ def withDatabaseCredentials(Closure body) {
 // Second, independent guard besides the stage 'when': deployment is only
 // possible from a main branch build, never from a PR or a feature branch
 def ensureDeploymentEligible() {
-    if (env.CHANGE_ID || env.BRANCH_NAME != 'main' || env.PIPELINE_GATE != 'MAIN') {
-        error("Deployment refused: only main builds can deploy (branch ${env.BRANCH_NAME}, change ${env.CHANGE_ID ?: 'none'}).")
+    if (env.CHANGE_ID || env.BRANCH_NAME != 'main' || env.PIPELINE_GATE != 'MAIN' || env.QUALITY_GATE_PASSED != 'true') {
+        error("Deployment refused: only a main build that passed the Main Gate can deploy (branch ${env.BRANCH_NAME}, change ${env.CHANGE_ID ?: 'none'}).")
     }
 }
 
@@ -568,6 +642,11 @@ def shortSha() {
     def sha = env.COMMIT_SHA ?: ''
 
     return sha.length() > 7 ? sha.substring(0, 7) : sha
+}
+
+@NonCPS
+def isSha(String value) {
+    return value ==~ /[0-9a-f]{40}/
 }
 
 // PR number from a GitHub merge commit subject: "Merge pull request #N from ..."

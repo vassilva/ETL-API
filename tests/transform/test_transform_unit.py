@@ -19,6 +19,7 @@ pytestmark = [pytest.mark.transform, pytest.mark.unit]
 # Users
 
 # Validate the complete user mapping, including flattened nested fields
+@pytest.mark.smoke
 def test_transform_user_maps_all_fields(synthetic_payload):
     raw_user = synthetic_payload("users")["users"][0]
 
@@ -38,6 +39,7 @@ def test_transform_user_maps_all_fields(synthetic_payload):
 
 
 # Validate that full_name keeps non-ASCII characters unchanged
+@pytest.mark.regression
 def test_transform_user_full_name_keeps_unicode(synthetic_payload):
     raw_user = synthetic_payload("users")["users"][1]
 
@@ -65,6 +67,7 @@ def test_transform_product_discounted_price(synthetic_payload, price, discount, 
 
 
 # Validate the complete product mapping
+@pytest.mark.smoke
 def test_transform_product_maps_all_fields(synthetic_payload):
     raw_product = synthetic_payload("products")["products"][0]
 
@@ -103,6 +106,7 @@ def test_transform_product_without_brand(synthetic_payload):
         "Name - R",                        # suffix-like ending is not merged
     ]
 )
+@pytest.mark.regression
 def test_transform_product_name_appends_rp_suffix(synthetic_payload, title):
     raw_product = synthetic_payload("products")["products"][0]
     raw_product["title"] = title
@@ -119,6 +123,7 @@ def test_transform_product_name_appends_rp_suffix(synthetic_payload, title):
 
 # Validate the cart mapping including the nested product list. Cart item names
 # keep the original title: the " - RP" rule applies to products only
+@pytest.mark.smoke
 def test_transform_cart_maps_cart_and_products(synthetic_payload):
     raw_cart = synthetic_payload("carts")["carts"][0]
 

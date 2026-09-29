@@ -5,10 +5,9 @@ Detects upstream data problems at the Source boundary, before the ETL can
 propagate them. Every check first requires a non-empty collection, so an
 empty source can never pass vacuously, and reports the offending ids.
 
-Smoke (PR critical path, before the ETL runs): a complete collection (the
-anchor of Source-anchored completeness), valid keys and cart products that
-exist, whose violation would truncate or break the Load. The data-quality
-rules run in the pre-merge regression.
+PR Regression (merge-blocking source contract, before Extract): the complete
+collection, the anchor of Source-anchored completeness. Everything else here
+is upstream monitoring and runs only in the local Full Regression.
 """
 
 import pytest
@@ -29,7 +28,7 @@ def _records(source_payloads, entity):
 
 
 # Validate that the API returned the complete, non-empty collection
-@pytest.mark.smoke
+@pytest.mark.regression
 @pytest.mark.parametrize("resource", SOURCE_RESOURCES)
 def test_source_collection_is_complete(source_payloads, resource):
     payload = source_payloads[resource]
@@ -42,7 +41,6 @@ def test_source_collection_is_complete(source_payloads, resource):
 
 
 # Validate that every source record has a unique, non-null id
-@pytest.mark.smoke
 @pytest.mark.parametrize("resource", SOURCE_RESOURCES)
 def test_source_keys_are_valid(source_payloads, resource):
     ids = [record.get("id") for record in _records(source_payloads, resource)]
@@ -91,7 +89,6 @@ def test_source_rule(source_payloads, rule_id, entity, violates):
 
 
 # Validate that every product referenced by a cart exists in the products source
-@pytest.mark.smoke
 def test_source_cart_products_exist(source_payloads):
     product_ids = {p["id"] for p in _records(source_payloads, "products")}
     items = _records(source_payloads, "cart_items")

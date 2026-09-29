@@ -28,6 +28,7 @@ def offline_extract(monkeypatch, tmp_path, synthetic_payload):
 
 # Validate that extract_* returns (records, total) and saves the raw payload
 @pytest.mark.parametrize("resource, label, extract_fn, fetch_fn", EXTRACTORS)
+@pytest.mark.smoke
 def test_extract_saves_raw_payload(
     offline_extract, synthetic_payload, capsys, resource, label, extract_fn, fetch_fn
 ):

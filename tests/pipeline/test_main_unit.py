@@ -10,7 +10,7 @@ import pytest
 import main
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.smoke]
 
 
 EXTRACT = ["extract_users", "extract_products", "extract_carts"]
